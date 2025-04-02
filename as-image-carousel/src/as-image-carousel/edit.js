@@ -24,6 +24,8 @@ import { useBlockProps } from '@wordpress/block-editor';
  */
 import './editor.scss';
 
+import './image-carousel';
+
 /**
  * The edit function describes the structure of your block in the context of the
  * editor. This represents what the editor will render when the block is used.
@@ -44,7 +46,10 @@ export default function Edit({ attributes, setAttributes }) {
 			{images.length > 0 ? (
 				<image-carousel>
 					{images.map((img) => (
-						<img key={img.id} src={img.url} alt={img.alt} />
+						<figure>
+							<img key={img.id} src={img.url} alt={img.alt} loading="lazy" />
+							<figcaption>{img.caption}</figcaption>
+						</figure>
 					))}
 				</image-carousel>
 			) : (

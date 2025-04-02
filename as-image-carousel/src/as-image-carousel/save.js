@@ -15,10 +15,19 @@ import { useBlockProps } from '@wordpress/block-editor';
  *
  * @return {Element} Element to render.
  */
-export default function save() {
+export default function save({ attributes }) {
+	const { images } = attributes;
+
 	return (
 		<p { ...useBlockProps.save() }>
-			{ 'Image Carousel – hello from the saved content!' }
+			<image-carousel>
+				{images.map((img) => (
+					<figure>
+						<img key={img.id} src={img.url} alt={img.alt} loading="lazy" />
+						<figcaption>{img.caption}</figcaption>
+					</figure>
+				))}
+			</image-carousel>
 		</p>
 	);
 }

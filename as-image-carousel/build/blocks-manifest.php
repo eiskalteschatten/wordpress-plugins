@@ -6,7 +6,7 @@ return array(
 		'apiVersion' => 3,
 		'name' => 'as-image-carousel/as-image-carousel',
 		'version' => '0.1.0',
-		'title' => 'Image Carousel',
+		'title' => 'Alex\'s Image Carousel',
 		'category' => 'media',
 		'icon' => 'images-alt',
 		'description' => 'Create an image carousel',
