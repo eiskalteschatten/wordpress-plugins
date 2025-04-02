@@ -1,3 +1,6 @@
+import { MediaUpload, MediaUploadCheck } from '@wordpress/block-editor';
+import { Button } from '@wordpress/components';
+
 /**
  * Retrieves the translation of text.
  *
@@ -29,13 +32,45 @@ import './editor.scss';
  *
  * @return {Element} Element to render.
  */
-export default function Edit() {
+export default function Edit({ attributes, setAttributes }) {
+	const { images } = attributes;
+
+	const onSelectImages = (newImages) => {
+		setAttributes({ images: newImages });
+	};
+
 	return (
-		<p { ...useBlockProps() }>
-			{ __(
-				'Image Carousel – hello from the editor!',
-				'as-image-carousel'
-			) }
-		</p>
+		<div { ...useBlockProps() }>
+			{images.length > 0 ? (
+				<image-carousel>
+					{images.map((img) => (
+						<img key={img.id} src={img.url} alt={img.alt} />
+					))}
+				</image-carousel>
+			) : (
+				<MediaUploadCheck>
+					<MediaUpload
+						onSelect={onSelectImages}
+						allowedTypes={['image']}
+						multiple
+						gallery
+						value={images.map((img) => img.id)}
+						render={({ open }) => (
+							<Button onClick={open} primary>
+								Select Images
+							</Button>
+						)}
+					/>
+				</MediaUploadCheck>
+			)}
+		</div>
 	);
+	// return (
+	// 	<p { ...useBlockProps() }>
+	// 		{ __(
+	// 			'Image Carousel – hello from the editor!',
+	// 			'as-image-carousel'
+	// 		) }
+	// 	</p>
+	// );
 }
