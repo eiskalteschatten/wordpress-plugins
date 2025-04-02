@@ -20,14 +20,14 @@ export default function save({ attributes }) {
 
 	return (
 		<p { ...useBlockProps.save() }>
-			<image-carousel>
+			<div className='as-image-carousel'>
 				{images.map((img) => (
 					<figure>
 						<img key={img.id} src={img.url} alt={img.alt} loading="lazy" />
 						<figcaption>{img.caption}</figcaption>
 					</figure>
 				))}
-			</image-carousel>
+			</div>
 		</p>
 	);
 }

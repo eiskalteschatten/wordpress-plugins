@@ -44,14 +44,14 @@ export default function Edit({ attributes, setAttributes }) {
 	return (
 		<div { ...useBlockProps() }>
 			{images.length > 0 ? (
-				<image-carousel>
+				<div className='as-image-carousel'>
 					{images.map((img) => (
 						<figure>
 							<img key={img.id} src={img.url} alt={img.alt} loading="lazy" />
 							<figcaption>{img.caption}</figcaption>
 						</figure>
 					))}
-				</image-carousel>
+				</div>
 			) : (
 				<p className='as-image-carousel-select-images'>
 					<div className='as-image-carousel-select-images-text'>{__('Select images for the carousel:', 'as-image-carousel')}</div>

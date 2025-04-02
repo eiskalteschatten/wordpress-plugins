@@ -5,7 +5,7 @@
  * Replace them with your own styles or remove the file completely.
  */
 
-image-carousel {
+.as-image-carousel {
   position: relative;
   width: 100%;
   margin: auto;
@@ -44,10 +44,14 @@ image-carousel {
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      /* background-color: var(--color); */
+      background-color: #000000;
       margin: 0 5px;
       transition: opacity 300ms;
       opacity: .4;
+
+			@media (prefers-color-scheme: dark) {
+				background-color: #ffffff;
+			}
 
       &.active {
         opacity: 1;
