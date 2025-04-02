@@ -1,5 +1,6 @@
 import { MediaUpload, MediaUploadCheck } from '@wordpress/block-editor';
 import { Button } from '@wordpress/components';
+import { useEffect, useRef } from 'react';
 
 /**
  * Retrieves the translation of text.
@@ -15,6 +16,9 @@ import { __ } from '@wordpress/i18n';
  * @see https://developer.wordpress.org/block-editor/reference-guides/packages/packages-block-editor/#useblockprops
  */
 import { useBlockProps } from '@wordpress/block-editor';
+
+import './web-components';
+import ImageCarousel from './image-carousel';
 
 /**
  * Lets webpack process CSS, SASS or SCSS files referenced in JavaScript files.
@@ -34,15 +38,22 @@ import './editor.scss';
  */
 export default function Edit({ attributes, setAttributes }) {
 	const { images } = attributes;
+	const carouselRef = useRef(null);
 
 	const onSelectImages = (newImages) => {
 		setAttributes({ images: newImages });
 	};
 
+	useEffect(() => {
+		if (carouselRef.current) {
+			new ImageCarousel(carouselRef.current);
+		}
+	}, [images]);
+
 	return (
 		<div { ...useBlockProps() }>
 			{images.length > 0 ? (
-				<div className='as-image-carousel'>
+				<div className='as-image-carousel' ref={carouselRef}>
 					{images.map((img) => (
 						<figure>
 							<img key={img.id} src={img.url} alt={img.alt} loading="lazy" />
