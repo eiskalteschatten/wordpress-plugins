@@ -194,5 +194,4 @@ class ImageCarousel {
 document.addEventListener('DOMContentLoaded', () => {
 	const carousels = document.querySelectorAll('.as-image-carousel');
 	carousels.forEach((carousel) => new ImageCarousel(carousel));
-	carousels.forEach((carousel) => console.log(carousel));
 });
