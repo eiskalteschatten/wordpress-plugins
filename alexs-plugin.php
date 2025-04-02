@@ -14,24 +14,13 @@ Author URI: https://www.alexseifert.com
 
 // require_once( 'hr-maps-admin.php' );
 
-// function historyrhymes_add_scripts_styles() {
-//     // Leaflet
-//     $leaflet_version = '1.9.4';
-//     wp_register_style( 'hr-maps-leaflet', plugin_dir_url( __FILE__ ) . 'lib/leaflet/leaflet.css', array(), $leaflet_version );
-//     wp_enqueue_style( 'hr-maps-leaflet' );
-//     wp_register_script( 'hr-maps-leaflet', plugin_dir_url( __FILE__ ) . 'lib/leaflet/leaflet.js', array(), $leaflet_version, array( 'strategy'  => 'defer' ));
-//     wp_enqueue_script( 'hr-maps-leaflet' );
+function alexseifert_add_scripts_styles() {
+    wp_register_script( 'as-image-carousel', plugin_dir_url( __FILE__ ) . 'js/image-carousel/index.js', [], '1.0.0', array( 'strategy'  => 'async' ));
+    wp_enqueue_script( 'as-image-carousel' );
 
-//     // Custom scripts and styles
-//     wp_register_script( 'hr-maps-scripts', plugin_dir_url( __FILE__ ) . 'js/scripts.js', ['hr-maps-leaflet'], '1.0.0', array( 'strategy'  => 'defer' ));
-//     wp_enqueue_script( 'hr-maps-scripts' );
-
-//     wp_register_script( 'hr-maps-web-components', plugin_dir_url( __FILE__ ) . 'js/web-components/index.js', ['hr-maps-leaflet', 'hr-maps-scripts'], '1.0.1', array( 'strategy'  => 'defer' ));
-//     wp_enqueue_script( 'hr-maps-web-components' );
-
-//     wp_register_style( 'hr-maps-main', plugin_dir_url( __FILE__ ) . 'css/main.css', array(), '1.0.0' );
-//     wp_enqueue_style( 'hr-maps-main' );
-// }
+    wp_register_style( 'as-image-carousel', plugin_dir_url( __FILE__ ) . 'css/image-carousel.css', array(), '1.0.0' );
+    wp_enqueue_style( 'as-image-carousel' );
+}
 
 // function historyrhymes_full_map( $atts = [], $content = '' ) {
 //     historyrhymes_add_scripts_styles();
