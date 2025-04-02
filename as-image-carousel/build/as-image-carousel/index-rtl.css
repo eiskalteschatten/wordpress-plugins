@@ -1,1 +1,20 @@
-.wp-block-as-image-carousel-as-image-carousel{border:1px dotted red}
+/*!**********************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[4].use[1]!./node_modules/postcss-loader/dist/cjs.js??ruleSet[1].rules[4].use[2]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[4].use[3]!./src/as-image-carousel/editor.scss ***!
+  \**********************************************************************************************************************************************************************************************************************************************************/
+/**
+ * The following styles get applied inside the editor only.
+ *
+ * Replace them with your own styles or remove the file completely.
+ */
+.as-image-carousel-select-images {
+  border: 1px solid #000000;
+  padding: 20px;
+  display: flex;
+  gap: 15px;
+  flex-direction: column;
+}
+
+.as-image-carousel-select-images-text {
+  font-size: 14px;
+  font-weight: 600;
+}

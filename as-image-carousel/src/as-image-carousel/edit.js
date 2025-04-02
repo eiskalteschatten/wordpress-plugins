@@ -48,20 +48,25 @@ export default function Edit({ attributes, setAttributes }) {
 					))}
 				</image-carousel>
 			) : (
-				<MediaUploadCheck>
-					<MediaUpload
-						onSelect={onSelectImages}
-						allowedTypes={['image']}
-						multiple
-						gallery
-						value={images.map((img) => img.id)}
-						render={({ open }) => (
-							<Button onClick={open} primary>
-								Select Images
-							</Button>
-						)}
-					/>
-				</MediaUploadCheck>
+				<p className='as-image-carousel-select-images'>
+					<div className='as-image-carousel-select-images-text'>{__('Select images for the carousel:', 'as-image-carousel')}</div>
+					<div>
+						<MediaUploadCheck>
+							<MediaUpload
+								onSelect={onSelectImages}
+								allowedTypes={['image']}
+								multiple
+								gallery
+								value={images.map((img) => img.id)}
+								render={({ open }) => (
+									<Button onClick={open} variant='primary'>
+										Select Images
+									</Button>
+								)}
+							/>
+						</MediaUploadCheck>
+					</div>
+				</p>
 			)}
 		</div>
 	);

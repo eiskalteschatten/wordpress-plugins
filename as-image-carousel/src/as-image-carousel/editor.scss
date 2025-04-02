@@ -4,6 +4,15 @@
  * Replace them with your own styles or remove the file completely.
  */
 
-.wp-block-as-image-carousel-as-image-carousel {
-	border: 1px dotted #f00;
+.as-image-carousel-select-images {
+	border: 1px solid #000000;
+	padding: 20px;
+	display: flex;
+	gap: 15px;
+	flex-direction: column;
+}
+
+.as-image-carousel-select-images-text {
+	font-size: 14px;
+	font-weight: 600;
 }
