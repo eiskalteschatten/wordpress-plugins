@@ -24,7 +24,7 @@ import { useBlockProps } from '@wordpress/block-editor';
  */
 import './editor.scss';
 
-import './image-carousel';
+// import './image-carousel';
 
 /**
  * The edit function describes the structure of your block in the context of the

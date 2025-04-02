@@ -14,6 +14,8 @@ class ImageCarousel extends HTMLElement {
     this.dataset.index = 0;
     this.figures = this.querySelectorAll('figure');
 
+		console.log('ImageCarousel connectedCallback', this.figures);
+
     if (!this.figures?.length) {
       throw new Error('No figures could be found in the image carousel!');
     }

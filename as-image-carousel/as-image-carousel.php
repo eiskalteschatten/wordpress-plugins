@@ -26,6 +26,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @see https://make.wordpress.org/core/2024/10/17/new-block-type-registration-apis-to-improve-performance-in-wordpress-6-7/
  */
 function as_image_carousel_as_image_carousel_block_init() {
+	wp_enqueue_script_module( 'as-image-carousel', plugin_dir_url( __FILE__ ) . 'js/web-components/index.js', [], '1.0.0', false);
+
+	wp_enqueue_script( 'as-image-carousel-light-box', plugin_dir_url( __FILE__ ) . 'js/light-box.js', [], '1.0.0', array( 'strategy'  => 'async' ));
+	wp_enqueue_script( 'as-image-carousel-light-box' );
+
 	/**
 	 * Registers the block(s) metadata from the `blocks-manifest.php` and registers the block type(s)
 	 * based on the registered block metadata.
