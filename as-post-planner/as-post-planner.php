@@ -144,3 +144,38 @@ function aspp_post_type_change_notice() {
     }
 }
 add_action( 'admin_notices', 'aspp_post_type_change_notice' );
+
+// AJAX handler for post type conversion
+function aspp_convert_post_type_ajax() {
+    // Check nonce
+    if (!wp_verify_nonce($_POST['nonce'], 'aspp_convert_post_type')) {
+        wp_die(json_encode(['success' => false, 'data' => 'Invalid nonce']));
+    }
+    
+    $post_id = intval($_POST['post_id']);
+    $new_post_type = sanitize_text_field($_POST['new_post_type']);
+    
+    // Verify the post exists and user can edit it
+    if (!current_user_can('edit_post', $post_id)) {
+        wp_die(json_encode(['success' => false, 'data' => 'Insufficient permissions']));
+    }
+    
+    // Validate post type
+    $valid_post_types = get_post_types();
+    if (!in_array($new_post_type, $valid_post_types)) {
+        wp_die(json_encode(['success' => false, 'data' => 'Invalid post type']));
+    }
+    
+    // Update the post type
+    $result = wp_update_post(array(
+        'ID' => $post_id,
+        'post_type' => $new_post_type
+    ));
+    
+    if (is_wp_error($result)) {
+        wp_die(json_encode(['success' => false, 'data' => $result->get_error_message()]));
+    }
+    
+    wp_die(json_encode(['success' => true, 'data' => 'Post type converted successfully']));
+}
+add_action('wp_ajax_aspp_convert_post_type', 'aspp_convert_post_type_ajax');
