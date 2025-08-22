@@ -83,11 +83,6 @@ function aspp_save_post_meta($post_id) {
             
             // Re-add the save_post hook
             add_action( 'save_post', 'aspp_save_post_meta' );
-            
-            // Redirect to the edit screen of the new post type
-            $redirect_url = admin_url( 'post.php?post=' . $post_id . '&action=edit&post_type_changed=1' );
-            wp_redirect( $redirect_url );
-            exit;
         }
     }
 }
