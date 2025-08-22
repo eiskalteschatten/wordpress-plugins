@@ -31,20 +31,20 @@ function aspp_change_post_type_callback($post) {
     
     if ($post->post_type === 'planned_post') {
         // Show button to convert to regular post
-        echo '<button type="button" onclick="asppConvertPostTypeAjax(' . $post->ID . ', \'post\')" class="button button-primary" style="width: 100%; margin-bottom: 10px;">';
+        echo '<button type="button" onclick="asppConvertPostTypeAjax(event, ' . $post->ID . ', \'post\')" class="button button-primary" style="width: 100%; margin-bottom: 10px;">';
         echo 'Convert to Regular Post';
         echo '</button>';
     } elseif ($post->post_type === 'post') {
         // Show button to convert to planned post
-        echo '<button type="button" onclick="asppConvertPostTypeAjax(' . $post->ID . ', \'planned_post\')" class="button button-primary" style="width: 100%; margin-bottom: 10px;">';
+        echo '<button type="button" onclick="asppConvertPostTypeAjax(event, ' . $post->ID . ', \'planned_post\')" class="button button-primary" style="width: 100%; margin-bottom: 10px;">';
         echo 'Convert to Planned Post';
         echo '</button>';
     } else {
         // For other post types, show both options
-        echo '<button type="button" onclick="asppConvertPostTypeAjax(' . $post->ID . ', \'post\')" class="button button-secondary" style="width: 100%; margin-bottom: 5px;">';
+        echo '<button type="button" onclick="asppConvertPostTypeAjax(event, ' . $post->ID . ', \'post\')" class="button button-secondary" style="width: 100%; margin-bottom: 5px;">';
         echo 'Convert to Regular Post';
         echo '</button>';
-        echo '<button type="button" onclick="asppConvertPostTypeAjax(' . $post->ID . ', \'planned_post\')" class="button button-secondary" style="width: 100%; margin-bottom: 10px;">';
+        echo '<button type="button" onclick="asppConvertPostTypeAjax(event, ' . $post->ID . ', \'planned_post\')" class="button button-secondary" style="width: 100%; margin-bottom: 10px;">';
         echo 'Convert to Planned Post';
         echo '</button>';
     }

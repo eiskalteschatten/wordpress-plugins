@@ -1,4 +1,4 @@
-function asppConvertPostTypeAjax(postId, newPostType) {
+function asppConvertPostTypeAjax(event, postId, newPostType) {
     if (confirm("Are you sure you want to convert this post type? This action cannot be undone.")) {
         // Show loading state
         event.target.disabled = true;
