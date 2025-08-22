@@ -127,7 +127,7 @@ function aspp_filter_planned_posts_by_category($query) {
     global $pagenow;
 
     if (is_admin() && $pagenow == 'edit.php' && isset($_GET['post_type']) && $_GET['post_type'] == 'planned_post') {
-        if (isset($_GET['planned_post_category']) && $_GET['planned_post_category'] != '') {
+        if (isset($_GET['planned_post_category']) && !empty($_GET['planned_post_category'])) {
             $query->query_vars['tax_query'] = array(
                 array(
                     'taxonomy' => 'planned_post_category',
