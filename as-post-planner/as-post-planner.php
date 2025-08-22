@@ -94,6 +94,33 @@ function aspp_flush_rewrite_rules() {
 }
 register_activation_hook(__FILE__, 'aspp_flush_rewrite_rules');
 
+function aspp_enqueue_admin_scripts($hook) {
+    // Only load on post edit pages for 'story' and 'post' post types
+    if ( $hook == 'post.php' || $hook == 'post-new.php' ) {
+        global $post_type;
+        if ( $post_type == 'planned_post' || $post_type == 'post' ) {
+            wp_enqueue_script(
+                'aspp-admin-posts',
+                plugin_dir_url(__FILE__) . 'assets/scripts/posts.js',
+                array('jquery'),
+                '1.0.0',
+                true
+            );
+            
+            // Pass nonce to JavaScript
+            wp_localize_script(
+                'aspp-admin-posts',
+                'aspp_ajax',
+                array(
+                    'ajax_url' => admin_url('admin-ajax.php'),
+                    'nonce' => wp_create_nonce('aspp_convert_post_type')
+                )
+            );
+        }
+    }
+}
+add_action('admin_enqueue_scripts', 'aspp_enqueue_admin_scripts');
+
 // Add custom taxonomy filter to admin post list
 function aspp_add_planned_post_category_filter() {
     global $typenow;
