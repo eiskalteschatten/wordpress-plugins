@@ -21,9 +21,11 @@ function aspp_plugin_init() {
             'singular_name' => __( 'Planned Post Category', 'textdomain' ),
         ),
         'public' => false,
+        'show_ui' => true,
+        'show_admin_column' => true,
         'hierarchical' => true,
-        'show_in_rest' => false,
-        'rewrite' => array( 'slug' => 'planned-post-category' ),
+        'show_in_rest' => true,
+        'rewrite' => array( 'slug' => 'planned-post-category' )
     ) );
 
     register_taxonomy( 'planned_post_tag', 'planned_post', array(
@@ -32,9 +34,11 @@ function aspp_plugin_init() {
             'singular_name' => __( 'Planned Post Tag', 'textdomain' ),
         ),
         'public' => false,
+        'show_ui' => true,
+        'show_admin_column' => true,
         'hierarchical' => false,
-        'show_in_rest' => false,
-        'rewrite' => array( 'slug' => 'planned-post-tag' ),
+        'show_in_rest' => true,
+        'rewrite' => array( 'slug' => 'planned-post-tag' )
     ) );
 
 	register_post_type('planned_post',
@@ -44,11 +48,13 @@ function aspp_plugin_init() {
 				'singular_name' => __('Planned Post', 'textdomain'),
 			),
             'public' => false,
+            'show_ui' => true,
+            'show_in_menu' => true,
             'has_archive' => false,
-            'show_in_rest' => false,
+            'show_in_rest' => true,
             'taxonomies' => array( 'planned_post_category', 'planned_post_tag' ),
             'menu_icon' => 'dashicons-index-card',
-            'register_meta_box_cb' => 'aspp_add_post_meta_boxes',
+            'register_meta_box_cb' => 'aspp_add_planned_post_meta_boxes',
             'supports' => array( 'title', 'editor', 'thumbnail', 'excerpt', 'page-attributes', 'custom-fields' )
 		)
 	);
@@ -63,7 +69,7 @@ function aspp_save_post_meta($post_id) {
          !empty( $_POST['aspp_new_post_type'] ) ) {
         
         $new_post_type = sanitize_text_field( $_POST['aspp_new_post_type'] );
-        $valid_post_types = get_post_types( array( 'public' => true ) );
+        $valid_post_types = get_post_types();
         
         if ( in_array( $new_post_type, $valid_post_types ) ) {
             // Remove the save_post hook temporarily to prevent infinite loop
@@ -108,8 +114,8 @@ function aspp_add_planned_post_category_filter() {
             'name' => $taxonomy,
             'orderby' => 'name',
             'selected' => $selected,
-            'show_count' => true,
-            'hide_empty' => true,
+            'show_count' => false,
+            'hide_empty' => false,
             'value_field' => 'slug',
         ));
     }
@@ -117,7 +123,7 @@ function aspp_add_planned_post_category_filter() {
 add_action('restrict_manage_posts', 'aspp_add_planned_post_category_filter');
 
 // Filter the posts based on the selected category
-function aspp_filter_stories_by_category($query) {
+function aspp_filter_planned_posts_by_category($query) {
     global $pagenow;
 
     if (is_admin() && $pagenow == 'edit.php' && isset($_GET['post_type']) && $_GET['post_type'] == 'planned_post') {
@@ -132,7 +138,7 @@ function aspp_filter_stories_by_category($query) {
         }
     }
 }
-add_filter('parse_query', 'aspp_filter_stories_by_category');
+add_filter('parse_query', 'aspp_filter_planned_posts_by_category');
 
 // Show admin notice when post type is changed
 function aspp_post_type_change_notice() {
