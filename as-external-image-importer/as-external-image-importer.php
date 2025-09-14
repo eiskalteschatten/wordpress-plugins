@@ -1,14 +1,14 @@
 <?php
 /**
  * @package External Image Importer
- * @version 1.0.1
+ * @version 1.0.2
  */
 /*
 Plugin Name: External Image Importer
 Plugin URI: https://www.alexseifert.com
 Description: Imports external images from posts into the WordPress media library
 Author: Alex Seifert
-Version: 1.0.1
+Version: 1.0.2
 Author URI: https://www.alexseifert.com
 */
 
@@ -121,20 +121,29 @@ class ExternalImageImporter {
             $post_types = array('post', 'page');
         }
 
-        $posts = get_posts(array(
+        // Use WP_Query instead of get_posts for better control over large datasets
+        $query = new WP_Query(array(
             'post_type' => $post_types,
             'post_status' => 'publish',
-            'numberposts' => $batch_size,
+            'posts_per_page' => $batch_size,
             'offset' => $offset,
-            'fields' => 'ids'
+            'fields' => 'ids',
+            'no_found_rows' => false, // We need to know the total count
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
         ));
+
+        $posts = $query->posts;
+        $total_posts = $query->found_posts;
 
         $results = array(
             'processed' => 0,
             'imported' => 0,
             'errors' => array(),
-            'has_more' => count($posts) === $batch_size,
-            'next_offset' => $offset + $batch_size
+            'has_more' => ($offset + $batch_size) < $total_posts,
+            'next_offset' => $offset + $batch_size,
+            'total_posts' => $total_posts,
+            'current_offset' => $offset
         );
 
         foreach ($posts as $post_id) {

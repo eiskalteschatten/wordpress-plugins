@@ -67,6 +67,21 @@ jQuery(document).ready(function($) {
 
                     updateResults();
 
+                    // Show progress information
+                    if (data.total_posts) {
+                        const progress = Math.round((data.current_offset + data.processed) / data.total_posts * 100);
+                        updateProgressText(`Processing posts... ${data.current_offset + data.processed}/${data.total_posts} (${progress}%)`);
+                        $('#eii-progress-bar').css('width', progress + '%');
+                    }
+
+                    console.log('Batch result:', {
+                        offset: data.current_offset,
+                        processed: data.processed,
+                        total: data.total_posts,
+                        has_more: data.has_more,
+                        next_offset: data.next_offset
+                    });
+
                     if (data.has_more && isRunning) {
                         // Continue with next batch
                         setTimeout(() => {
