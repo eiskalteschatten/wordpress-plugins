@@ -1,14 +1,14 @@
 <?php
 /**
  * @package External Image Importer
- * @version 1.0.2
+ * @version 1.0.3
  */
 /*
 Plugin Name: External Image Importer
 Plugin URI: https://www.alexseifert.com
 Description: Imports external images from posts into the WordPress media library
 Author: Alex Seifert
-Version: 1.0.2
+Version: 1.0.3
 Author URI: https://www.alexseifert.com
 */
 
@@ -121,20 +121,36 @@ class ExternalImageImporter {
             $post_types = array('post', 'page');
         }
 
-        // Use WP_Query instead of get_posts for better control over large datasets
-        $query = new WP_Query(array(
-            'post_type' => $post_types,
-            'post_status' => 'publish',
-            'posts_per_page' => $batch_size,
-            'offset' => $offset,
-            'fields' => 'ids',
-            'no_found_rows' => false, // We need to know the total count
-            'update_post_meta_cache' => false,
-            'update_post_term_cache' => false,
-        ));
+        // Use direct database query to avoid WordPress query limitations
+        global $wpdb;
 
-        $posts = $query->posts;
-        $total_posts = $query->found_posts;
+        // Get total count first
+        $post_types_placeholders = implode(',', array_fill(0, count($post_types), '%s'));
+        $total_query = $wpdb->prepare("
+            SELECT COUNT(ID)
+            FROM {$wpdb->posts}
+            WHERE post_type IN ($post_types_placeholders)
+            AND post_status = 'publish'
+        ", $post_types);
+
+        $total_posts = $wpdb->get_var($total_query);
+
+        // Get current batch
+        $batch_query = $wpdb->prepare("
+            SELECT ID
+            FROM {$wpdb->posts}
+            WHERE post_type IN ($post_types_placeholders)
+            AND post_status = 'publish'
+            ORDER BY ID ASC
+            LIMIT %d OFFSET %d
+        ", array_merge($post_types, [$batch_size, $offset]));
+
+        $posts = $wpdb->get_col($batch_query);
+
+        // Debug logging
+        error_log("EII Debug: Offset: $offset, Batch size: $batch_size, Posts found in batch: " . count($posts) . ", Total posts: $total_posts");
+        error_log("EII Debug: Post IDs in batch: " . implode(', ', $posts));
+        error_log("EII Debug: SQL Query: " . $batch_query);
 
         $results = array(
             'processed' => 0,
@@ -143,7 +159,8 @@ class ExternalImageImporter {
             'has_more' => ($offset + $batch_size) < $total_posts,
             'next_offset' => $offset + $batch_size,
             'total_posts' => $total_posts,
-            'current_offset' => $offset
+            'current_offset' => $offset,
+            'posts_in_batch' => count($posts)
         );
 
         foreach ($posts as $post_id) {

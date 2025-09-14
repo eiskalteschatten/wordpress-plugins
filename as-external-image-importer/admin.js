@@ -79,8 +79,15 @@ jQuery(document).ready(function($) {
                         processed: data.processed,
                         total: data.total_posts,
                         has_more: data.has_more,
-                        next_offset: data.next_offset
+                        next_offset: data.next_offset,
+                        posts_in_batch: data.posts_in_batch
                     });
+
+                    // Additional debugging
+                    if (!data.has_more) {
+                        console.log('Stopping because has_more is false');
+                        console.log('Calculation: (' + data.current_offset + ' + ' + 5 + ') < ' + data.total_posts + ' = ' + ((data.current_offset + 5) < data.total_posts));
+                    }
 
                     if (data.has_more && isRunning) {
                         // Continue with next batch
