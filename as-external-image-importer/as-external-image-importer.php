@@ -579,8 +579,8 @@ $eii_instance = new ExternalImageImporter();
 error_log("EII: Plugin initialized");
 
 // Also write to custom log
-$log_file = plugin_dir_path(__FILE__) . 'debug.log';
-$timestamp = date('Y-m-d H:i:s');
-file_put_contents($log_file, "[$timestamp] EII: Plugin file loaded and initialized\n", FILE_APPEND | LOCK_EX);
+// $log_file = plugin_dir_path(__FILE__) . 'debug.log';
+// $timestamp = date('Y-m-d H:i:s');
+// file_put_contents($log_file, "[$timestamp] EII: Plugin file loaded and initialized\n", FILE_APPEND | LOCK_EX);
 
 ?>
