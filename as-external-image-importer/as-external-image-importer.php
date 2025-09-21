@@ -81,9 +81,9 @@ class ExternalImageImporter {
         error_log($message);
 
         // Also write to a custom log file in the plugin directory
-        $log_file = plugin_dir_path(__FILE__) . 'debug.log';
-        $timestamp = date('Y-m-d H:i:s');
-        file_put_contents($log_file, "[$timestamp] $message\n", FILE_APPEND | LOCK_EX);
+        // $log_file = plugin_dir_path(__FILE__) . 'debug.log';
+        // $timestamp = date('Y-m-d H:i:s');
+        // file_put_contents($log_file, "[$timestamp] $message\n", FILE_APPEND | LOCK_EX);
     }
 
     public function add_admin_menu() {
