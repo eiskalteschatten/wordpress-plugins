@@ -31,17 +31,23 @@ jQuery(document).ready(function($) {
         $('#eii-results').show();
 
         updateStatus('Starting import...');
+        console.log('=== STARTING IMPORT ===');
         processNextBatch(0, 0); // Start with last_id = 0, processed_count = 0
     }
 
     function processNextBatch(lastId, processedCount) {
         if (!isRunning) return;
 
+        console.log(`=== PROCESSING BATCH ===`);
+        console.log(`lastId: ${lastId}, processedCount: ${processedCount}`);
+
         // Get selected post types
         let selectedPostTypes = [];
         $('input[name="post_types[]"]:checked').each(function() {
             selectedPostTypes.push($(this).val());
         });
+
+        console.log('Selected post types:', selectedPostTypes);
 
         if (selectedPostTypes.length === 0) {
             updateStatus('Error: Please select at least one post type to process.');
@@ -51,29 +57,39 @@ jQuery(document).ready(function($) {
 
         updateProgressText(`Processing posts (processed: ${processedCount})...`);
 
+        const ajaxData = {
+            action: 'import_external_images',
+            nonce: eii_ajax.nonce,
+            last_id: lastId,
+            processed_count: processedCount,
+            total_posts: totalPosts, // Pass total posts to maintain state
+            post_types: selectedPostTypes
+        };
+
+        console.log('AJAX request data:', ajaxData);
+
         $.ajax({
             url: eii_ajax.url,
             method: 'POST',
-            data: {
-                action: 'import_external_images',
-                nonce: eii_ajax.nonce,
-                last_id: lastId,
-                processed_count: processedCount,
-                total_posts: totalPosts, // Pass total posts to maintain state
-                post_types: selectedPostTypes
-            },
+            data: ajaxData,
             success: function(response) {
+                console.log('=== AJAX RESPONSE ===', response);
+
                 if (response.success) {
                     const data = response.data;
+                    console.log('Response data:', data);
+
                     totalProcessed += data.processed || 0;
                     totalImported += data.imported || 0;
                     if (data.errors && data.errors.length > 0) {
                         allErrors = allErrors.concat(data.errors);
+                        console.log('Errors found:', data.errors);
                     }
 
                     // Store total posts from first response
                     if (data.total_posts && data.total_posts > 0) {
                         totalPosts = data.total_posts;
+                        console.log('Total posts set to:', totalPosts);
                     }
 
                     updateResults();
@@ -101,6 +117,7 @@ jQuery(document).ready(function($) {
                     // Additional debugging
                     if (!data.has_more) {
                         console.log('Stopping because has_more is false or no more posts found');
+                        console.log('Stop conditions: has_more =', data.has_more, 'posts_in_batch =', data.posts_in_batch);
                     }
 
                     // Check if we should continue
@@ -109,23 +126,40 @@ jQuery(document).ready(function($) {
                                          (data.posts_in_batch || 0) > 0 &&
                                          data.last_id !== lastId; // Ensure we're making progress
 
+                    console.log('Should continue?', shouldContinue);
+                    console.log('Continuation check:', {
+                        'data.has_more': data.has_more,
+                        'isRunning': isRunning,
+                        'posts_in_batch > 0': (data.posts_in_batch || 0) > 0,
+                        'last_id changed': data.last_id !== lastId,
+                        'old lastId': lastId,
+                        'new lastId': data.last_id
+                    });
+
                     if (shouldContinue) {
+                        console.log('Continuing to next batch...');
                         // Continue with next batch
                         setTimeout(() => {
                             processNextBatch(data.last_id, data.processed_count || currentProcessed);
                         }, 500); // Small delay to prevent overwhelming the server
                     } else {
+                        console.log('Import complete - stopping');
                         // Import complete
                         completeImport();
                     }
                 } else {
+                    console.log('AJAX returned error:', response);
                     updateStatus('Error: ' + (response.data || 'Unknown error'));
                     completeImport();
                 }
             },
             error: function(xhr, status, error) {
+                console.log('=== AJAX ERROR ===');
+                console.log('XHR:', xhr);
+                console.log('Status:', status);
+                console.log('Error:', error);
+                console.log('Response text:', xhr.responseText);
                 updateStatus('AJAX Error: ' + error);
-                console.error('AJAX Error details:', {xhr, status, error});
                 completeImport();
             }
         });

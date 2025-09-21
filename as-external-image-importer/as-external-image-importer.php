@@ -137,9 +137,25 @@ class ExternalImageImporter {
             ", $post_types);
 
             $total_posts = $wpdb->get_var($total_query);
+            error_log("EII Debug: Total posts query: " . str_replace(array("\n", "\t"), ' ', $total_query));
+            error_log("EII Debug: Total posts found: $total_posts");
 
             if ($wpdb->last_error) {
                 error_log("EII Database Error - Total Count: " . $wpdb->last_error);
+            }
+
+            // Additional diagnostic - let's see some sample post IDs
+            if ($total_posts > 0) {
+                $sample_query = $wpdb->prepare("
+                    SELECT ID, post_title
+                    FROM {$wpdb->posts}
+                    WHERE post_type IN ($post_types_placeholders)
+                    AND post_status = 'publish'
+                    ORDER BY ID ASC
+                    LIMIT 5
+                ", $post_types);
+                $sample_posts = $wpdb->get_results($sample_query);
+                error_log("EII Debug: Sample posts: " . print_r($sample_posts, true));
             }
         }
 
@@ -172,8 +188,10 @@ class ExternalImageImporter {
         }
 
         // Debug logging
+        error_log("=== EII BATCH START ===");
         error_log("EII Debug: Last ID: $last_id, Batch size: $batch_size, Posts found in batch: " . count($posts) . ", Total posts: $total_posts, Query time: {$query_time}ms");
         error_log("EII Debug: Post IDs in batch: " . implode(', ', $posts));
+        error_log("EII Debug: SQL Query: " . str_replace(array("\n", "\t"), ' ', $batch_query));
 
         // Calculate new last_id and determine if there are more posts
         $new_last_id = !empty($posts) ? max($posts) : $last_id;
@@ -185,7 +203,10 @@ class ExternalImageImporter {
         // Additional safety check: if no posts were found and last_id > 0, we're done
         if (empty($posts) && $last_id > 0) {
             $has_more = false;
+            error_log("EII Debug: No posts found with last_id > 0, setting has_more to false");
         }
+
+        error_log("EII Debug: new_last_id = $new_last_id, has_more = " . ($has_more ? 'true' : 'false'));
 
         $results = array(
             'processed' => 0,
@@ -200,7 +221,9 @@ class ExternalImageImporter {
         );
 
         foreach ($posts as $post_id) {
+            error_log("EII Debug: Processing post ID $post_id");
             $result = $this->process_post($post_id);
+            error_log("EII Debug: Post $post_id result - imported: {$result['imported']}, errors: " . count($result['errors']));
             $results['processed']++;
             $results['imported'] += $result['imported'];
             if (!empty($result['errors'])) {
@@ -211,15 +234,25 @@ class ExternalImageImporter {
         // Update the total processed count
         $results['processed_count'] = $processed_count + $results['processed'];
 
+        error_log("EII Debug: Batch complete - processed: {$results['processed']}, imported: {$results['imported']}, total_processed: {$results['processed_count']}");
+        error_log("=== EII BATCH END ===");
+
         wp_send_json_success($results);
     }
 
     private function process_post($post_id) {
         $post = get_post($post_id);
+        if (!$post) {
+            error_log("EII Debug: Post $post_id not found");
+            return array('imported' => 0, 'errors' => array("Post $post_id not found"));
+        }
+
         $content = $post->post_content;
         $imported = 0;
         $errors = array();
         $image_urls = array();
+
+        error_log("EII Debug: Processing post $post_id ('{$post->post_title}'), content length: " . strlen($content));
 
         // Find all img tags with various src attributes
         $patterns = array(
@@ -257,9 +290,20 @@ class ExternalImageImporter {
         // Remove duplicates
         $image_urls = array_unique($image_urls);
 
+        error_log("EII Debug: Found " . count($image_urls) . " total image URLs in post $post_id: " . implode(', ', array_slice($image_urls, 0, 5)) . (count($image_urls) > 5 ? '...' : ''));
+
+        $external_count = 0;
+        foreach ($image_urls as $url) {
+            if ($this->is_external_url($url)) {
+                $external_count++;
+            }
+        }
+        error_log("EII Debug: Found $external_count external images in post $post_id");
+
         if (!empty($image_urls)) {
             foreach ($image_urls as $image_url) {
                 if ($this->is_external_url($image_url)) {
+                    error_log("EII Debug: Importing external image: $image_url");
                     $result = $this->import_image($image_url, $post_id);
                     if ($result['success']) {
                         // Replace the URL in content
