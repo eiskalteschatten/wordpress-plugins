@@ -72,6 +72,7 @@ jQuery(document).ready(function($) {
             url: eii_ajax.url,
             method: 'POST',
             data: ajaxData,
+            timeout: 240000, // 4 minutes timeout (longer than PHP timeout)
             success: function(response) {
                 console.log('=== AJAX RESPONSE ===', response);
 

@@ -1,6 +1,12 @@
 <?php
 /**
- * @package External Image Impor    public function enqueue_scrip    public function enqueue_scripts($hook) {
+ *        wp_enqueue_script(
+            'eii-admin',
+            plugin_dir_url(__FILE__) . 'admin.js',
+            array('jquery'),
+            '1.0.3', // Updated version for cache busting
+            true
+        );ge External Image Impor    public function enqueue_scrip    public function enqueue_scripts($hook) {
         $this->debug_log("EII: enqueue_scripts called on hook: $hook");
 
         if ($hook !== 'tools_page_external-image-importer') {
@@ -174,6 +180,10 @@ class ExternalImageImporter {
             wp_die('Unauthorized');
         }
 
+        // Increase execution time for this request
+        set_time_limit(300); // 5 minutes
+        ini_set('max_execution_time', 300);
+
         $this->debug_log("EII: Starting ajax_import_images function");        $batch_size = 5; // Process 5 posts per batch
         $last_id = intval($_POST['last_id'] ?? 0);
         $processed_count = intval($_POST['processed_count'] ?? 0);
@@ -313,12 +323,25 @@ class ExternalImageImporter {
 
         foreach ($posts as $post_id) {
             error_log("EII Debug: Processing post ID $post_id");
+
+            // Set a per-post timeout to prevent hanging
+            $start_time = time();
+            $max_post_time = 30; // 30 seconds max per post
+
             $result = $this->process_post($post_id);
-            error_log("EII Debug: Post $post_id result - imported: {$result['imported']}, errors: " . count($result['errors']));
+
+            $processing_time = time() - $start_time;
+            error_log("EII Debug: Post $post_id result - imported: {$result['imported']}, errors: " . count($result['errors']) . ", time: {$processing_time}s");
+
             $results['processed']++;
             $results['imported'] += $result['imported'];
             if (!empty($result['errors'])) {
                 $results['errors'] = array_merge($results['errors'], $result['errors']);
+            }
+
+            // If this post took too long, we might be hitting issues - but continue anyway
+            if ($processing_time > $max_post_time) {
+                error_log("EII Warning: Post $post_id took {$processing_time}s to process (>$max_post_time limit)");
             }
         }
 
@@ -392,10 +415,21 @@ class ExternalImageImporter {
         error_log("EII Debug: Found $external_count external images in post $post_id");
 
         if (!empty($image_urls)) {
+            $processed_images = 0;
+            $max_images_per_post = 3; // Limit to prevent timeouts
+
             foreach ($image_urls as $image_url) {
                 if ($this->is_external_url($image_url)) {
+                    // Skip if we've already processed max images for this post
+                    if ($processed_images >= $max_images_per_post) {
+                        error_log("EII Debug: Skipping remaining images for post $post_id (max $max_images_per_post reached)");
+                        break;
+                    }
+
                     error_log("EII Debug: Importing external image: $image_url");
                     $result = $this->import_image($image_url, $post_id);
+                    $processed_images++;
+
                     if ($result['success']) {
                         // Replace the URL in content
                         $new_url = wp_get_attachment_url($result['attachment_id']);
@@ -496,8 +530,19 @@ class ExternalImageImporter {
         }
 
         try {
-            // Download the image with shorter timeout
-            $temp_file = download_url($image_url, 60); // 1 minute timeout
+            // Force short timeout for HTTP requests
+            add_filter('http_request_timeout', function() { return 5; });
+            add_filter('http_request_args', function($args) {
+                $args['timeout'] = 5;
+                return $args;
+            });
+
+            // Download the image with much shorter timeout to fail fast
+            $temp_file = download_url($image_url, 5); // 5 second timeout
+
+            // Remove filters after download
+            remove_all_filters('http_request_timeout');
+            remove_all_filters('http_request_args');
 
             if (is_wp_error($temp_file)) {
                 return array(
