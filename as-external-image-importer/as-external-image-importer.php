@@ -1,14 +1,14 @@
 <?php
 /**
  * @package External Image Importer
- * @version 1.0.3
+ * @version 1.0.4
  */
 /*
 Plugin Name: External Image Importer
 Plugin URI: https://www.alexseifert.com
 Description: Imports external images from posts into the WordPress media library
 Author: Alex Seifert
-Version: 1.0.3
+Version: 1.0.4
 Author URI: https://www.alexseifert.com
 */
 
