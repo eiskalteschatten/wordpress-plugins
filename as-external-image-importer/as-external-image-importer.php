@@ -77,7 +77,7 @@ Plugin Name: External Image Importer
 Plugin URI: https://www.alexseifert.com
 Description: Imports external images from posts into the WordPress media library
 Author: Alex Seifert
-Version: 1.0.5
+Version: 1.0.6
 Author URI: https://www.alexseifert.com
 */
 
@@ -129,7 +129,7 @@ class ExternalImageImporter {
             'eii-admin',
             plugin_dir_url(__FILE__) . 'admin.js',
             array('jquery'),
-            '1.0.5', // Updated version to bust cache
+            '1.0.6', // Updated version to bust cache
             true
         );
 
@@ -187,6 +187,7 @@ class ExternalImageImporter {
     }
 
     public function ajax_import_images() {
+        error_log("=== EII IMPORT STARTED - " . date('Y-m-d H:i:s') . " ===");
         $this->debug_log("=== EII AJAX HANDLER CALLED ===");
         $this->debug_log("POST data: " . print_r($_POST, true));
 
@@ -581,7 +582,7 @@ class ExternalImageImporter {
         require_once(ABSPATH . 'wp-admin/includes/image.php');
 
         // Check if domain is known to be unreachable (fail fast)
-        $unreachable_domains = ['alexseifertmusic.com', 'www.alexseifertmusic.com', 'thoughts.alexseifert.com'];
+        $unreachable_domains = ['alexseifertmusic.com', 'www.alexseifertmusic.com', 'thoughts.alexseifert.com', 'www.undesregnet.com', 'seifertalex.googlepages.com', 'www.alexseifert.com'];
         $domain = parse_url($image_url, PHP_URL_HOST);
         error_log("EII Debug: Checking domain: '$domain' against blacklist: " . implode(', ', $unreachable_domains));
         if (in_array($domain, $unreachable_domains)) {
