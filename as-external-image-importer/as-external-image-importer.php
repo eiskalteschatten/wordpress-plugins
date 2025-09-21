@@ -198,8 +198,9 @@ class ExternalImageImporter {
         }
 
         // Increase execution time for this request
-        set_time_limit(300); // 5 minutes
-        ini_set('max_execution_time', 300);
+        set_time_limit(0); // No time limit
+        ini_set('max_execution_time', 0);
+        ini_set('memory_limit', '512M'); // Increase memory limit
 
         $this->debug_log("EII: Starting ajax_import_images function");        $batch_size = 5; // Process 5 posts per batch
         $last_id = intval($_POST['last_id'] ?? 0);
@@ -434,7 +435,7 @@ class ExternalImageImporter {
         if (!empty($image_urls)) {
             $processed_images = 0;
             $post_start_time = time();
-            $max_post_processing_time = 60; // 60 seconds max per post instead of image limit
+            $max_post_processing_time = 20; // Reduced from 60 to 20 seconds max per post
 
             foreach ($image_urls as $image_url) {
                 if ($this->is_external_url($image_url)) {
@@ -577,6 +578,17 @@ class ExternalImageImporter {
         require_once(ABSPATH . 'wp-admin/includes/file.php');
         require_once(ABSPATH . 'wp-admin/includes/image.php');
 
+        // Check if domain is known to be unreachable (fail fast)
+        $unreachable_domains = ['alexseifertmusic.com', 'www.alexseifertmusic.com', 'thoughts.alexseifert.com'];
+        $domain = parse_url($image_url, PHP_URL_HOST);
+        if (in_array($domain, $unreachable_domains)) {
+            error_log("EII Debug: Skipping known unreachable domain: $domain");
+            return array(
+                'success' => false,
+                'error' => 'Domain marked as unreachable: ' . $domain
+            );
+        }
+
         // Check if image already exists by URL
         $existing_attachment = $this->get_attachment_by_url($image_url);
         if ($existing_attachment) {
@@ -588,40 +600,29 @@ class ExternalImageImporter {
         }
 
         try {
-            // Try with short timeout first, then longer if needed
-            $timeouts = [5, 15]; // 5 seconds first, then 15 seconds
-            $temp_file = null;
-            $last_error = null;
+            // Single fast timeout attempt only
+            $timeout = 3; // Very short timeout
+            error_log("EII Debug: Trying download with {$timeout}s timeout: $image_url");
 
-            foreach ($timeouts as $timeout) {
-                error_log("EII Debug: Trying download with {$timeout}s timeout: $image_url");
+            // Set timeout filters
+            add_filter('http_request_timeout', function() use ($timeout) { return $timeout; });
+            add_filter('http_request_args', function($args) use ($timeout) {
+                $args['timeout'] = $timeout;
+                return $args;
+            });
 
-                // Set timeout filters
-                add_filter('http_request_timeout', function() use ($timeout) { return $timeout; });
-                add_filter('http_request_args', function($args) use ($timeout) {
-                    $args['timeout'] = $timeout;
-                    return $args;
-                });
+            $temp_file = download_url($image_url, $timeout);
 
-                $temp_file = download_url($image_url, $timeout);
-
-                // Remove filters after each attempt
-                remove_all_filters('http_request_timeout');
-                remove_all_filters('http_request_args');
-
-                if (!is_wp_error($temp_file)) {
-                    error_log("EII Debug: Successfully downloaded with {$timeout}s timeout");
-                    break; // Success!
-                } else {
-                    $last_error = $temp_file->get_error_message();
-                    error_log("EII Debug: Failed with {$timeout}s timeout: $last_error");
-                }
-            }
+            // Remove filters after attempt
+            remove_all_filters('http_request_timeout');
+            remove_all_filters('http_request_args');
 
             if (is_wp_error($temp_file)) {
+                $error_msg = $temp_file->get_error_message();
+                error_log("EII Debug: Failed with {$timeout}s timeout: $error_msg");
                 return array(
                     'success' => false,
-                    'error' => $last_error
+                    'error' => $error_msg
                 );
             }            // Get file info and generate a proper filename
             $parsed_url = parse_url($image_url);
