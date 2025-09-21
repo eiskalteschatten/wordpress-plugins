@@ -436,6 +436,7 @@ class ExternalImageImporter {
             $processed_images = 0;
             $post_start_time = time();
             $max_post_processing_time = 20; // Reduced from 60 to 20 seconds max per post
+            $content_modified = false; // Track if content was actually changed
 
             foreach ($image_urls as $image_url) {
                 if ($this->is_external_url($image_url)) {
@@ -481,6 +482,7 @@ class ExternalImageImporter {
                             }
                         } else {
                             error_log("EII Debug: Successfully replaced URL in post content");
+                            $content_modified = true; // Mark content as changed
                         }
 
                         // If this was the featured image, update it
@@ -497,8 +499,8 @@ class ExternalImageImporter {
                 }
             }
 
-            // Update post content if any images were imported
-            if ($imported > 0) {
+            // Update post content if any URLs were actually replaced
+            if ($content_modified) {
                 $update_result = wp_update_post(array(
                     'ID' => $post_id,
                     'post_content' => $content
@@ -507,10 +509,10 @@ class ExternalImageImporter {
                 if (is_wp_error($update_result)) {
                     error_log("EII Debug: ERROR - Failed to update post $post_id content: " . $update_result->get_error_message());
                 } else {
-                    error_log("EII Debug: Successfully updated post $post_id content with $imported imported image URLs");
+                    error_log("EII Debug: Successfully updated post $post_id content (content was modified)");
                 }
             } else {
-                error_log("EII Debug: No images imported for post $post_id, skipping content update");
+                error_log("EII Debug: No content changes for post $post_id, skipping content update");
             }
         }
 
@@ -581,6 +583,7 @@ class ExternalImageImporter {
         // Check if domain is known to be unreachable (fail fast)
         $unreachable_domains = ['alexseifertmusic.com', 'www.alexseifertmusic.com', 'thoughts.alexseifert.com'];
         $domain = parse_url($image_url, PHP_URL_HOST);
+        error_log("EII Debug: Checking domain: '$domain' against blacklist: " . implode(', ', $unreachable_domains));
         if (in_array($domain, $unreachable_domains)) {
             error_log("EII Debug: Skipping known unreachable domain: $domain");
             return array(
@@ -588,10 +591,12 @@ class ExternalImageImporter {
                 'error' => 'Domain marked as unreachable: ' . $domain
             );
         }
+        error_log("EII Debug: Domain '$domain' not in blacklist, proceeding with download");
 
         // Check if image already exists by URL
         $existing_attachment = $this->get_attachment_by_url($image_url);
         if ($existing_attachment) {
+            error_log("EII Debug: Image already exists as attachment ID: $existing_attachment");
             return array(
                 'success' => true,
                 'attachment_id' => $existing_attachment,
