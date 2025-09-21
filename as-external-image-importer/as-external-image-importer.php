@@ -1,7 +1,30 @@
 <?php
 /**
- * @package External Image Impor    public function enqueue_scripts($hook) {
-        error_log("EII: enqueue_scripts called on hook: $hook");
+ * @package External Image Impor    public function enqueue_scrip    public function enqueue_scripts($hook) {
+        $this->debug_log("EII: enqueue_scripts called on hook: $hook");
+
+        if ($hook !== 'tools_page_external-image-importer') {
+            $this->debug_log("EII: Wrong hook, not enqueuing scripts");
+            return;
+        }
+
+        $this->debug_log("EII: Enqueuing scripts");
+        wp_enqueue_script('jquery');
+        wp_enqueue_script(
+            'eii-admin',
+            plugin_dir_url(__FILE__) . 'admin.js',
+            array('jquery'),
+            '1.0.2', // Updated version to bust cache
+            true
+        );
+
+        wp_localize_script('eii-admin', 'eii_ajax', array(
+            'url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('eii_nonce')
+        ));
+
+        $this->debug_log("EII: Scripts enqueued, AJAX URL: " . admin_url('admin-ajax.php'));
+    } error_log("EII: enqueue_scripts called on hook: $hook");
 
         if ($hook !== 'tools_page_external-image-importer') {
             error_log("EII: Wrong hook, not enqueuing scripts");
@@ -46,11 +69,21 @@ class ExternalImageImporter {
     private $errors = array();
 
     public function __construct() {
-        error_log("EII: Plugin constructor called");
+        $this->debug_log("EII: Plugin constructor called");
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('wp_ajax_import_external_images', array($this, 'ajax_import_images'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
-        error_log("EII: All actions registered");
+        $this->debug_log("EII: All actions registered");
+    }
+
+    private function debug_log($message) {
+        // Write to both error_log and a custom file
+        error_log($message);
+
+        // Also write to a custom log file in the plugin directory
+        $log_file = plugin_dir_path(__FILE__) . 'debug.log';
+        $timestamp = date('Y-m-d H:i:s');
+        file_put_contents($log_file, "[$timestamp] $message\n", FILE_APPEND | LOCK_EX);
     }
 
     public function add_admin_menu() {
@@ -131,19 +164,17 @@ class ExternalImageImporter {
     }
 
     public function ajax_import_images() {
-        error_log("=== EII AJAX HANDLER CALLED ===");
-        error_log("POST data: " . print_r($_POST, true));
+        $this->debug_log("=== EII AJAX HANDLER CALLED ===");
+        $this->debug_log("POST data: " . print_r($_POST, true));
 
         check_ajax_referer('eii_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            error_log("EII Error: User lacks manage_options capability");
+            $this->debug_log("EII Error: User lacks manage_options capability");
             wp_die('Unauthorized');
         }
 
-        error_log("EII: Starting ajax_import_images function");
-
-        $batch_size = 5; // Process 5 posts per batch
+        $this->debug_log("EII: Starting ajax_import_images function");        $batch_size = 5; // Process 5 posts per batch
         $last_id = intval($_POST['last_id'] ?? 0);
         $processed_count = intval($_POST['processed_count'] ?? 0);
         $post_types = isset($_POST['post_types']) ? $_POST['post_types'] : array('post', 'page');
@@ -235,6 +266,35 @@ class ExternalImageImporter {
         if (empty($posts) && $last_id > 0) {
             $has_more = false;
             error_log("EII Debug: No posts found with last_id > 0, setting has_more to false");
+        }
+
+        // Debug the continuation logic in detail
+        error_log("EII Debug: Continuation analysis:");
+        error_log("EII Debug: - Posts found: " . count($posts));
+        error_log("EII Debug: - Batch size: $batch_size");
+        error_log("EII Debug: - Posts found === batch_size: " . (count($posts) === $batch_size ? 'true' : 'false'));
+        error_log("EII Debug: - new_last_id: $new_last_id (old: $last_id)");
+        error_log("EII Debug: - has_more: " . ($has_more ? 'true' : 'false'));
+
+        // If we're stopping, let's see why
+        if (!$has_more) {
+            error_log("EII Debug: STOPPING - Reason: " .
+                (empty($posts) ? "No posts found" : "Incomplete batch (found " . count($posts) . " of $batch_size)")
+            );
+
+            // Additional diagnostic: check if there are actually more posts beyond this point
+            if (!empty($posts)) {
+                $diagnostic_query = $wpdb->prepare("
+                    SELECT COUNT(ID) as remaining_count, MIN(ID) as next_min_id
+                    FROM {$wpdb->posts}
+                    WHERE post_type IN ($post_types_placeholders)
+                    AND post_status = 'publish'
+                    AND ID > %d
+                ", array_merge($post_types, [$new_last_id]));
+
+                $diagnostic_result = $wpdb->get_row($diagnostic_query);
+                error_log("EII Debug: Diagnostic check - Posts remaining after ID $new_last_id: {$diagnostic_result->remaining_count}, Next ID: {$diagnostic_result->next_min_id}");
+            }
         }
 
         error_log("EII Debug: new_last_id = $new_last_id, has_more = " . ($has_more ? 'true' : 'false'));
@@ -514,8 +574,13 @@ class ExternalImageImporter {
 }
 
 // Initialize the plugin
-error_log("EII: Initializing External Image Importer plugin");
-new ExternalImageImporter();
+error_log("EII: About to initialize External Image Importer plugin");
+$eii_instance = new ExternalImageImporter();
 error_log("EII: Plugin initialized");
+
+// Also write to custom log
+$log_file = plugin_dir_path(__FILE__) . 'debug.log';
+$timestamp = date('Y-m-d H:i:s');
+file_put_contents($log_file, "[$timestamp] EII: Plugin file loaded and initialized\n", FILE_APPEND | LOCK_EX);
 
 ?>
