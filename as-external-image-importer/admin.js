@@ -112,9 +112,7 @@ jQuery(document).ready(function($) {
                         has_more: data.has_more,
                         posts_in_batch: data.posts_in_batch,
                         query_time: data.query_time
-                    });
-
-                    // Additional debugging
+                    });                    // Additional debugging
                     if (!data.has_more) {
                         console.log('Stopping because has_more is false or no more posts found');
                         console.log('Stop conditions: has_more =', data.has_more, 'posts_in_batch =', data.posts_in_batch);

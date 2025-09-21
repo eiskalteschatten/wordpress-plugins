@@ -1,7 +1,30 @@
 <?php
 /**
- * @package External Image Importer
- * @version 1.0.5
+ * @package External Image Impor    public function enqueue_scripts($hook) {
+        error_log("EII: enqueue_scripts called on hook: $hook");
+        
+        if ($hook !== 'tools_page_external-image-importer') {
+            error_log("EII: Wrong hook, not enqueuing scripts");
+            return;
+        }
+
+        error_log("EII: Enqueuing scripts");
+        wp_enqueue_script('jquery');
+        wp_enqueue_script(
+            'eii-admin',
+            plugin_dir_url(__FILE__) . 'admin.js',
+            array('jquery'),
+            '1.0.1', // Updated version to bust cache
+            true
+        );
+
+        wp_localize_script('eii-admin', 'eii_ajax', array(
+            'url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('eii_nonce')
+        ));
+        
+        error_log("EII: Scripts enqueued, AJAX URL: " . admin_url('admin-ajax.php'));
+    }.5
  */
 /*
 Plugin Name: External Image Importer
@@ -23,9 +46,11 @@ class ExternalImageImporter {
     private $errors = array();
 
     public function __construct() {
+        error_log("EII: Plugin constructor called");
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('wp_ajax_import_external_images', array($this, 'ajax_import_images'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
+        error_log("EII: All actions registered");
     }
 
     public function add_admin_menu() {
@@ -48,7 +73,7 @@ class ExternalImageImporter {
             'eii-admin',
             plugin_dir_url(__FILE__) . 'admin.js',
             array('jquery'),
-            '1.0.0',
+            '1.0.5', // Updated version to bust cache
             true
         );
 
@@ -106,11 +131,17 @@ class ExternalImageImporter {
     }
 
     public function ajax_import_images() {
+        error_log("=== EII AJAX HANDLER CALLED ===");
+        error_log("POST data: " . print_r($_POST, true));
+        
         check_ajax_referer('eii_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
+            error_log("EII Error: User lacks manage_options capability");
             wp_die('Unauthorized');
         }
+
+        error_log("EII: Starting ajax_import_images function");
 
         $batch_size = 5; // Process 5 posts per batch
         $last_id = intval($_POST['last_id'] ?? 0);
@@ -483,4 +514,8 @@ class ExternalImageImporter {
 }
 
 // Initialize the plugin
+error_log("EII: Initializing External Image Importer plugin");
 new ExternalImageImporter();
+error_log("EII: Plugin initialized");
+
+?>
