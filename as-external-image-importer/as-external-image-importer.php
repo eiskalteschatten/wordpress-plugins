@@ -53,7 +53,7 @@ class ASExternalImageImporter {
         );
 
         wp_localize_script("eii-admin", "eii_ajax", array(
-            "ajaxurl" => admin_url("admin-ajax.php"),
+            "url" => admin_url("admin-ajax.php"),
             "nonce" => wp_create_nonce("eii_nonce")
         ));
     }
@@ -61,16 +61,21 @@ class ASExternalImageImporter {
     public function admin_page() {
         echo "<div class=\"wrap\">
             <h1>External Image Importer</h1>
-            <div id=\"eii-progress\" style=\"margin: 20px 0;\">
+            <div id=\"eii-status\"></div>
+            <div id=\"eii-progress\" style=\"margin: 20px 0; display: none;\">
                 <div class=\"progress-bar\" style=\"width: 100%; height: 30px; background: #f0f0f0; border: 1px solid #ccc;\">
-                    <div id=\"progress-fill\" style=\"height: 100%; background: #0073aa; width: 0%; transition: width 0.3s;\"></div>
+                    <div id=\"eii-progress-bar\" style=\"height: 100%; background: #0073aa; width: 0%; transition: width 0.3s;\"></div>
                 </div>
-                <p id=\"progress-text\">Ready to start import</p>
-                <div id=\"stats\"></div>
+                <p id=\"eii-progress-text\">Ready to start import</p>
             </div>
-            <button id=\"start-import\" class=\"button button-primary\">Start Import</button>
-            <button id=\"stop-import\" class=\"button\" style=\"display:none;\">Stop Import</button>
-            <div id=\"debug-log\" style=\"margin-top: 20px; padding: 10px; background: #f9f9f9; border: 1px solid #ddd; height: 300px; overflow-y: scroll; font-family: monospace; font-size: 12px;\"></div>
+            <div id=\"eii-results\" style=\"display: none;\">
+                <h3>Import Results</h3>
+                <p>Processed: <span id=\"eii-processed\">0</span></p>
+                <p>Imported: <span id=\"eii-imported\">0</span></p>
+                <div id=\"eii-errors\"></div>
+            </div>
+            <button id=\"eii-start-import\" class=\"button button-primary\">Start Import</button>
+            <button id=\"eii-stop-import\" class=\"button\" style=\"display:none;\">Stop Import</button>
         </div>";
     }
 
