@@ -29,10 +29,10 @@ jQuery(document).ready(function($) {
         $('#eii-results').show();
 
         updateStatus('Starting import...');
-        processNextBatch(0);
+        processNextBatch(0, 0); // Start with last_id = 0, processed_count = 0
     }
 
-    function processNextBatch(offset) {
+    function processNextBatch(lastId, processedCount) {
         if (!isRunning) return;
 
         // Get selected post types
@@ -47,7 +47,7 @@ jQuery(document).ready(function($) {
             return;
         }
 
-        updateProgressText(`Processing posts (starting from ${offset})...`);
+        updateProgressText(`Processing posts (processed: ${processedCount})...`);
 
         $.ajax({
             url: eii_ajax.url,
@@ -55,7 +55,8 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'import_external_images',
                 nonce: eii_ajax.nonce,
-                offset: offset,
+                last_id: lastId,
+                processed_count: processedCount,
                 post_types: selectedPostTypes
             },
             success: function(response) {
@@ -68,31 +69,33 @@ jQuery(document).ready(function($) {
                     updateResults();
 
                     // Show progress information
-                    if (data.total_posts) {
-                        const progress = Math.round((data.current_offset + data.processed) / data.total_posts * 100);
-                        updateProgressText(`Processing posts... ${data.current_offset + data.processed}/${data.total_posts} (${progress}%)`);
+                    if (data.total_posts && data.total_posts > 0) {
+                        const progress = Math.round(data.processed_count / data.total_posts * 100);
+                        updateProgressText(`Processing posts... ${data.processed_count}/${data.total_posts} (${progress}%)`);
                         $('#eii-progress-bar').css('width', progress + '%');
+                    } else if (data.processed_count > 0) {
+                        updateProgressText(`Processing posts... ${data.processed_count} processed so far`);
                     }
 
                     console.log('Batch result:', {
-                        offset: data.current_offset,
+                        last_id: data.last_id,
                         processed: data.processed,
+                        processed_count: data.processed_count,
                         total: data.total_posts,
                         has_more: data.has_more,
-                        next_offset: data.next_offset,
-                        posts_in_batch: data.posts_in_batch
+                        posts_in_batch: data.posts_in_batch,
+                        query_time: data.query_time
                     });
 
                     // Additional debugging
                     if (!data.has_more) {
-                        console.log('Stopping because has_more is false');
-                        console.log('Calculation: (' + data.current_offset + ' + ' + 5 + ') < ' + data.total_posts + ' = ' + ((data.current_offset + 5) < data.total_posts));
+                        console.log('Stopping because has_more is false or no more posts found');
                     }
 
-                    if (data.has_more && isRunning) {
+                    if (data.has_more && isRunning && data.posts_in_batch > 0) {
                         // Continue with next batch
                         setTimeout(() => {
-                            processNextBatch(data.next_offset);
+                            processNextBatch(data.last_id, data.processed_count);
                         }, 500); // Small delay to prevent overwhelming the server
                     } else {
                         // Import complete
@@ -105,6 +108,7 @@ jQuery(document).ready(function($) {
             },
             error: function(xhr, status, error) {
                 updateStatus('AJAX Error: ' + error);
+                console.error('AJAX Error details:', {xhr, status, error});
                 completeImport();
             }
         });

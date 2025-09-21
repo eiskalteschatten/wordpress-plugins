@@ -113,7 +113,8 @@ class ExternalImageImporter {
         }
 
         $batch_size = 5; // Process 5 posts per batch
-        $offset = intval($_POST['offset'] ?? 0);
+        $last_id = intval($_POST['last_id'] ?? 0);
+        $processed_count = intval($_POST['processed_count'] ?? 0);
         $post_types = isset($_POST['post_types']) ? $_POST['post_types'] : array('post', 'page');
 
         // Ensure post_types is an array
@@ -124,43 +125,69 @@ class ExternalImageImporter {
         // Use direct database query to avoid WordPress query limitations
         global $wpdb;
 
-        // Get total count first
+        // Get total count first (only on first request)
+        $total_posts = 0;
+        if ($last_id === 0) {
+            $post_types_placeholders = implode(',', array_fill(0, count($post_types), '%s'));
+            $total_query = $wpdb->prepare("
+                SELECT COUNT(ID)
+                FROM {$wpdb->posts}
+                WHERE post_type IN ($post_types_placeholders)
+                AND post_status = 'publish'
+            ", $post_types);
+
+            $total_posts = $wpdb->get_var($total_query);
+
+            if ($wpdb->last_error) {
+                error_log("EII Database Error - Total Count: " . $wpdb->last_error);
+            }
+        }
+
+        // Get current batch using cursor-based pagination (more efficient than OFFSET)
         $post_types_placeholders = implode(',', array_fill(0, count($post_types), '%s'));
-        $total_query = $wpdb->prepare("
-            SELECT COUNT(ID)
-            FROM {$wpdb->posts}
-            WHERE post_type IN ($post_types_placeholders)
-            AND post_status = 'publish'
-        ", $post_types);
-
-        $total_posts = $wpdb->get_var($total_query);
-
-        // Get current batch
         $batch_query = $wpdb->prepare("
             SELECT ID
             FROM {$wpdb->posts}
             WHERE post_type IN ($post_types_placeholders)
             AND post_status = 'publish'
+            AND ID > %d
             ORDER BY ID ASC
-            LIMIT %d OFFSET %d
-        ", array_merge($post_types, [$batch_size, $offset]));
+            LIMIT %d
+        ", array_merge($post_types, [$last_id, $batch_size]));
 
+        $start_time = microtime(true);
         $posts = $wpdb->get_col($batch_query);
+        $query_time = round((microtime(true) - $start_time) * 1000, 2);
+
+        if ($wpdb->last_error) {
+            error_log("EII Database Error - Batch Query: " . $wpdb->last_error);
+            wp_send_json_error('Database error: ' . $wpdb->last_error);
+            return;
+        }
+
+        if ($posts === false) {
+            error_log("EII Database Error - Query returned false");
+            wp_send_json_error('Database query failed');
+            return;
+        }
 
         // Debug logging
-        error_log("EII Debug: Offset: $offset, Batch size: $batch_size, Posts found in batch: " . count($posts) . ", Total posts: $total_posts");
+        error_log("EII Debug: Last ID: $last_id, Batch size: $batch_size, Posts found in batch: " . count($posts) . ", Total posts: $total_posts, Query time: {$query_time}ms");
         error_log("EII Debug: Post IDs in batch: " . implode(', ', $posts));
-        error_log("EII Debug: SQL Query: " . $batch_query);
+
+        $new_last_id = !empty($posts) ? max($posts) : $last_id;
+        $has_more = count($posts) === $batch_size; // If we got a full batch, assume there might be more
 
         $results = array(
             'processed' => 0,
             'imported' => 0,
             'errors' => array(),
-            'has_more' => ($offset + $batch_size) < $total_posts,
-            'next_offset' => $offset + $batch_size,
+            'has_more' => $has_more,
+            'last_id' => $new_last_id,
             'total_posts' => $total_posts,
-            'current_offset' => $offset,
-            'posts_in_batch' => count($posts)
+            'processed_count' => $processed_count,
+            'posts_in_batch' => count($posts),
+            'query_time' => $query_time
         );
 
         foreach ($posts as $post_id) {
@@ -171,6 +198,9 @@ class ExternalImageImporter {
                 $results['errors'] = array_merge($results['errors'], $result['errors']);
             }
         }
+
+        // Update the total processed count
+        $results['processed_count'] = $processed_count + $results['processed'];
 
         wp_send_json_success($results);
     }
