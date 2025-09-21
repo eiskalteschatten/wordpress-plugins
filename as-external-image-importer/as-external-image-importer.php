@@ -4,7 +4,7 @@
             'eii-admin',
             plugin_dir_url(__FILE__) . 'admin.js',
             array('jquery'),
-            '1.0.3', // Updated version for cache busting
+            '1.0.4', // Updated version for cache busting
             true
         );ge External Image Impor    public function enqueue_scrip    public function enqueue_scripts($hook) {
         $this->debug_log("EII: enqueue_scripts called on hook: $hook");
@@ -14,7 +14,24 @@
             return;
         }
 
-        $this->debug_log("EII: Enqueuing scripts");
+        $this->debug_log            // Store original URL as meta for reference
+            update_post_meta($attachment_id, '_original_external_url', $image_url);
+
+            error_log("EII Debug: Successfully imported image: $image_url -> attachment ID: $attachment_id");
+
+            return array(
+                'success' => true,
+                'attachment_id' => $attachment_id
+            );
+
+        } catch (Exception $e) {
+            error_log("EII Debug: Exception importing $image_url: " . $e->getMessage());
+            return array(
+                'success' => false,
+                'error' => 'Exception: ' . $e->getMessage()
+            );
+        }
+    }g scripts");
         wp_enqueue_script('jquery');
         wp_enqueue_script(
             'eii-admin',
@@ -416,13 +433,13 @@ class ExternalImageImporter {
 
         if (!empty($image_urls)) {
             $processed_images = 0;
-            $max_images_per_post = 3; // Limit to prevent timeouts
+            $max_images_per_post = 10; // Increased limit - was too restrictive at 3
 
             foreach ($image_urls as $image_url) {
                 if ($this->is_external_url($image_url)) {
                     // Skip if we've already processed max images for this post
                     if ($processed_images >= $max_images_per_post) {
-                        error_log("EII Debug: Skipping remaining images for post $post_id (max $max_images_per_post reached)");
+                        error_log("EII Debug: Skipping remaining images for post $post_id (max $max_images_per_post reached) - " . (count($image_urls) - $processed_images) . " images skipped");
                         break;
                     }
 
@@ -443,7 +460,7 @@ class ExternalImageImporter {
                         $imported++;
                     } else {
                         $errors[] = "Failed to import {$image_url}: " . $result['error'];
-                        error_log("External Image Importer: Failed to import {$image_url} for post {$post_id}: " . $result['error']);
+                        error_log("EII Debug: Failed to import {$image_url} for post {$post_id}: " . $result['error']);
                     }
                 }
             }
@@ -456,6 +473,8 @@ class ExternalImageImporter {
                 ));
             }
         }
+
+        error_log("EII Debug: Post $post_id result - imported: $imported, errors: " . count($errors) . " (out of " . count($image_urls) . " total images, $external_count external)");
 
         return array(
             'imported' => $imported,
