@@ -4,7 +4,7 @@
             'eii-admin',
             plugin_dir_url(__FILE__) . 'admin.js',
             array('jquery'),
-            '1.0.4', // Updated version for cache busting
+            '1.0.5', // Updated version for cache busting
             true
         );ge External Image Impor    public function enqueue_scrip    public function enqueue_scripts($hook) {
         $this->debug_log("EII: enqueue_scripts called on hook: $hook");
@@ -433,13 +433,15 @@ class ExternalImageImporter {
 
         if (!empty($image_urls)) {
             $processed_images = 0;
-            $max_images_per_post = 10; // Increased limit - was too restrictive at 3
+            $post_start_time = time();
+            $max_post_processing_time = 60; // 60 seconds max per post instead of image limit
 
             foreach ($image_urls as $image_url) {
                 if ($this->is_external_url($image_url)) {
-                    // Skip if we've already processed max images for this post
-                    if ($processed_images >= $max_images_per_post) {
-                        error_log("EII Debug: Skipping remaining images for post $post_id (max $max_images_per_post reached) - " . (count($image_urls) - $processed_images) . " images skipped");
+                    // Check if we've spent too much time on this post
+                    if (time() - $post_start_time > $max_post_processing_time) {
+                        $remaining_count = count($image_urls) - $processed_images;
+                        error_log("EII Debug: Stopping image processing for post $post_id after {$max_post_processing_time}s - $remaining_count images remaining");
                         break;
                     }
 
@@ -450,11 +452,40 @@ class ExternalImageImporter {
                     if ($result['success']) {
                         // Replace the URL in content
                         $new_url = wp_get_attachment_url($result['attachment_id']);
+                        $old_content = $content;
+
+                        // Try multiple replacement strategies for better matching
                         $content = str_replace($image_url, $new_url, $content);
+
+                        // If that didn't work, try with URL encoding/decoding variations
+                        if ($old_content === $content) {
+                            $content = str_replace(urlencode($image_url), $new_url, $content);
+                        }
+                        if ($old_content === $content) {
+                            $content = str_replace(urldecode($image_url), $new_url, $content);
+                        }
+                        // Try with HTML entity encoding
+                        if ($old_content === $content) {
+                            $content = str_replace(htmlspecialchars($image_url), $new_url, $content);
+                        }
+
+                        error_log("EII Debug: URL replacement - Old: $image_url -> New: $new_url");
+                        if ($old_content === $content) {
+                            error_log("EII Debug: WARNING - URL replacement had no effect for $image_url in post $post_id");
+                            // Let's see what the content actually contains around this URL
+                            if (strpos($content, $image_url) !== false) {
+                                error_log("EII Debug: URL found in content but replacement failed");
+                            } else {
+                                error_log("EII Debug: URL not found in content - may be in different format");
+                            }
+                        } else {
+                            error_log("EII Debug: Successfully replaced URL in post content");
+                        }
 
                         // If this was the featured image, update it
                         if ($image_url === $featured_image_url) {
                             set_post_thumbnail($post_id, $result['attachment_id']);
+                            error_log("EII Debug: Updated featured image for post $post_id");
                         }
 
                         $imported++;
@@ -467,10 +498,18 @@ class ExternalImageImporter {
 
             // Update post content if any images were imported
             if ($imported > 0) {
-                wp_update_post(array(
+                $update_result = wp_update_post(array(
                     'ID' => $post_id,
                     'post_content' => $content
                 ));
+
+                if (is_wp_error($update_result)) {
+                    error_log("EII Debug: ERROR - Failed to update post $post_id content: " . $update_result->get_error_message());
+                } else {
+                    error_log("EII Debug: Successfully updated post $post_id content with $imported imported image URLs");
+                }
+            } else {
+                error_log("EII Debug: No images imported for post $post_id, skipping content update");
             }
         }
 
@@ -549,28 +588,42 @@ class ExternalImageImporter {
         }
 
         try {
-            // Force short timeout for HTTP requests
-            add_filter('http_request_timeout', function() { return 5; });
-            add_filter('http_request_args', function($args) {
-                $args['timeout'] = 5;
-                return $args;
-            });
+            // Try with short timeout first, then longer if needed
+            $timeouts = [5, 15]; // 5 seconds first, then 15 seconds
+            $temp_file = null;
+            $last_error = null;
 
-            // Download the image with much shorter timeout to fail fast
-            $temp_file = download_url($image_url, 5); // 5 second timeout
+            foreach ($timeouts as $timeout) {
+                error_log("EII Debug: Trying download with {$timeout}s timeout: $image_url");
 
-            // Remove filters after download
-            remove_all_filters('http_request_timeout');
-            remove_all_filters('http_request_args');
+                // Set timeout filters
+                add_filter('http_request_timeout', function() use ($timeout) { return $timeout; });
+                add_filter('http_request_args', function($args) use ($timeout) {
+                    $args['timeout'] = $timeout;
+                    return $args;
+                });
+
+                $temp_file = download_url($image_url, $timeout);
+
+                // Remove filters after each attempt
+                remove_all_filters('http_request_timeout');
+                remove_all_filters('http_request_args');
+
+                if (!is_wp_error($temp_file)) {
+                    error_log("EII Debug: Successfully downloaded with {$timeout}s timeout");
+                    break; // Success!
+                } else {
+                    $last_error = $temp_file->get_error_message();
+                    error_log("EII Debug: Failed with {$timeout}s timeout: $last_error");
+                }
+            }
 
             if (is_wp_error($temp_file)) {
                 return array(
                     'success' => false,
-                    'error' => $temp_file->get_error_message()
+                    'error' => $last_error
                 );
-            }
-
-            // Get file info and generate a proper filename
+            }            // Get file info and generate a proper filename
             $parsed_url = parse_url($image_url);
             $path = $parsed_url['path'] ?? '';
             $filename = basename($path);
