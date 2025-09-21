@@ -2,7 +2,7 @@
 /**
  * @package External Image Impor    public function enqueue_scripts($hook) {
         error_log("EII: enqueue_scripts called on hook: $hook");
-        
+
         if ($hook !== 'tools_page_external-image-importer') {
             error_log("EII: Wrong hook, not enqueuing scripts");
             return;
@@ -22,7 +22,7 @@
             'url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('eii_nonce')
         ));
-        
+
         error_log("EII: Scripts enqueued, AJAX URL: " . admin_url('admin-ajax.php'));
     }.5
  */
@@ -133,7 +133,7 @@ class ExternalImageImporter {
     public function ajax_import_images() {
         error_log("=== EII AJAX HANDLER CALLED ===");
         error_log("POST data: " . print_r($_POST, true));
-        
+
         check_ajax_referer('eii_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
