@@ -1,14 +1,14 @@
 <?php
 /**
  * @package External Image Importer
- * @version 1.0.4
+ * @version 1.0.5
  */
 /*
 Plugin Name: External Image Importer
 Plugin URI: https://www.alexseifert.com
 Description: Imports external images from posts into the WordPress media library
 Author: Alex Seifert
-Version: 1.0.4
+Version: 1.0.5
 Author URI: https://www.alexseifert.com
 */
 
@@ -126,8 +126,8 @@ class ExternalImageImporter {
         global $wpdb;
 
         // Get total count first (only on first request)
-        $total_posts = 0;
-        if ($last_id === 0) {
+        $total_posts = intval($_POST['total_posts'] ?? 0);
+        if ($last_id === 0 || $total_posts === 0) {
             $post_types_placeholders = implode(',', array_fill(0, count($post_types), '%s'));
             $total_query = $wpdb->prepare("
                 SELECT COUNT(ID)
@@ -175,8 +175,17 @@ class ExternalImageImporter {
         error_log("EII Debug: Last ID: $last_id, Batch size: $batch_size, Posts found in batch: " . count($posts) . ", Total posts: $total_posts, Query time: {$query_time}ms");
         error_log("EII Debug: Post IDs in batch: " . implode(', ', $posts));
 
+        // Calculate new last_id and determine if there are more posts
         $new_last_id = !empty($posts) ? max($posts) : $last_id;
-        $has_more = count($posts) === $batch_size; // If we got a full batch, assume there might be more
+
+        // Determine if there are more posts to process
+        // If we got fewer posts than requested, we've likely reached the end
+        $has_more = count($posts) === $batch_size;
+
+        // Additional safety check: if no posts were found and last_id > 0, we're done
+        if (empty($posts) && $last_id > 0) {
+            $has_more = false;
+        }
 
         $results = array(
             'processed' => 0,

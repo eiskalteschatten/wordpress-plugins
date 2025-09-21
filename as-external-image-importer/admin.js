@@ -3,6 +3,7 @@ jQuery(document).ready(function($) {
     let totalProcessed = 0;
     let totalImported = 0;
     let allErrors = [];
+    let totalPosts = 0; // Store total posts count
 
     $('#eii-start-import').on('click', function() {
         if (isRunning) return;
@@ -22,6 +23,7 @@ jQuery(document).ready(function($) {
         totalProcessed = 0;
         totalImported = 0;
         allErrors = [];
+        totalPosts = 0; // Reset total posts
 
         $('#eii-start-import').hide();
         $('#eii-stop-import').show();
@@ -57,31 +59,40 @@ jQuery(document).ready(function($) {
                 nonce: eii_ajax.nonce,
                 last_id: lastId,
                 processed_count: processedCount,
+                total_posts: totalPosts, // Pass total posts to maintain state
                 post_types: selectedPostTypes
             },
             success: function(response) {
                 if (response.success) {
                     const data = response.data;
-                    totalProcessed += data.processed;
-                    totalImported += data.imported;
-                    allErrors = allErrors.concat(data.errors);
+                    totalProcessed += data.processed || 0;
+                    totalImported += data.imported || 0;
+                    if (data.errors && data.errors.length > 0) {
+                        allErrors = allErrors.concat(data.errors);
+                    }
+
+                    // Store total posts from first response
+                    if (data.total_posts && data.total_posts > 0) {
+                        totalPosts = data.total_posts;
+                    }
 
                     updateResults();
 
                     // Show progress information
-                    if (data.total_posts && data.total_posts > 0) {
-                        const progress = Math.round(data.processed_count / data.total_posts * 100);
-                        updateProgressText(`Processing posts... ${data.processed_count}/${data.total_posts} (${progress}%)`);
+                    const currentProcessed = data.processed_count || processedCount;
+                    if (totalPosts > 0) {
+                        const progress = Math.min(Math.round((currentProcessed / totalPosts) * 100), 100);
+                        updateProgressText(`Processing posts... ${currentProcessed}/${totalPosts} (${progress}%)`);
                         $('#eii-progress-bar').css('width', progress + '%');
-                    } else if (data.processed_count > 0) {
-                        updateProgressText(`Processing posts... ${data.processed_count} processed so far`);
+                    } else if (currentProcessed > 0) {
+                        updateProgressText(`Processing posts... ${currentProcessed} processed so far`);
                     }
 
                     console.log('Batch result:', {
                         last_id: data.last_id,
                         processed: data.processed,
                         processed_count: data.processed_count,
-                        total: data.total_posts,
+                        total: totalPosts,
                         has_more: data.has_more,
                         posts_in_batch: data.posts_in_batch,
                         query_time: data.query_time
@@ -92,10 +103,16 @@ jQuery(document).ready(function($) {
                         console.log('Stopping because has_more is false or no more posts found');
                     }
 
-                    if (data.has_more && isRunning && data.posts_in_batch > 0) {
+                    // Check if we should continue
+                    const shouldContinue = data.has_more &&
+                                         isRunning &&
+                                         (data.posts_in_batch || 0) > 0 &&
+                                         data.last_id !== lastId; // Ensure we're making progress
+
+                    if (shouldContinue) {
                         // Continue with next batch
                         setTimeout(() => {
-                            processNextBatch(data.last_id, data.processed_count);
+                            processNextBatch(data.last_id, data.processed_count || currentProcessed);
                         }, 500); // Small delay to prevent overwhelming the server
                     } else {
                         // Import complete
