@@ -4,7 +4,7 @@ Plugin Name: External Image Importer
 Plugin URI: https://www.alexseifert.com
 Description: Imports external images from posts into the WordPress media library
 Author: Alex Seifert
-Version: 1.0.6
+Version: 1.0.7
 Author URI: https://www.alexseifert.com
 */
 
@@ -56,7 +56,7 @@ class ExternalImageImporter {
             'eii-admin',
             plugin_dir_url(__FILE__) . 'admin.js',
             array('jquery'),
-            '1.0.6', // Updated version to bust cache
+            '1.0.7', // Updated version to bust cache
             true
         );
 
@@ -97,6 +97,12 @@ class ExternalImageImporter {
                 <h3>Import Results</h3>
                 <p><strong>Posts processed:</strong> <span id="eii-processed">0</span></p>
                 <p><strong>Images imported:</strong> <span id="eii-imported">0</span></p>
+                <div id="eii-posts-with-replacements" style="margin-top: 20px;">
+                    <h4>Posts with URL Replacements</h4>
+                    <div id="eii-replacement-list" style="max-height: 300px; overflow-y: auto; background: #f9f9f9; padding: 10px; border: 1px solid #ddd;">
+                        <p><em>No replacements yet...</em></p>
+                    </div>
+                </div>
                 <div id="eii-errors"></div>
             </div>
             <button id="eii-start-import" class="button button-primary">Start Import</button>
@@ -108,6 +114,21 @@ class ExternalImageImporter {
                 border-left: 4px solid #cc0000;
                 padding: 10px;
                 margin: 10px 0;
+            }
+            .eii-post-replacement {
+                background: #e8f5e8;
+                border-left: 4px solid #46b450;
+                padding: 8px 12px;
+                margin: 5px 0;
+                border-radius: 3px;
+            }
+            .eii-post-title {
+                font-weight: bold;
+                color: #23282d;
+            }
+            .eii-replacement-count {
+                color: #666;
+                font-size: 0.9em;
             }
         </style>
         <?php
@@ -259,6 +280,7 @@ class ExternalImageImporter {
             'processed' => 0,
             'imported' => 0,
             'errors' => array(),
+            'posts_with_replacements' => array(),
             'has_more' => $has_more,
             'last_id' => $new_last_id,
             'total_posts' => $total_posts,
@@ -283,6 +305,11 @@ class ExternalImageImporter {
             $results['imported'] += $result['imported'];
             if (!empty($result['errors'])) {
                 $results['errors'] = array_merge($results['errors'], $result['errors']);
+            }
+
+            // Add post replacement information if any URLs were replaced
+            if (!empty($result['post_info']) && $result['post_info']['replacements_made'] > 0) {
+                $results['posts_with_replacements'][] = $result['post_info'];
             }
 
             // If this post took too long, we might be hitting issues - but continue anyway
@@ -367,6 +394,7 @@ class ExternalImageImporter {
             $post_start_time = time();
             $max_post_processing_time = 20; // Reduced from 60 to 20 seconds max per post
             $content_modified = false; // Track if content was actually changed
+            $total_replacements_made = 0; // Track total URL replacements made
 
             foreach ($image_urls as $image_url) {
                 if ($this->is_external_url($image_url)) {
@@ -431,6 +459,9 @@ class ExternalImageImporter {
 
                         error_log("EII Debug: URL replacement - Old: $image_url -> New: $new_url, Replacements made: $replacements_made");
 
+                        // Add to total replacements made for this post
+                        $total_replacements_made += $replacements_made;
+
                         if ($replacements_made === 0) {
                             error_log("EII Debug: WARNING - URL replacement had no effect for $image_url in post $post_id");
                             // Let's see what the content actually contains around this URL
@@ -483,9 +514,22 @@ class ExternalImageImporter {
 
         error_log("EII Debug: Post $post_id result - imported: $imported, errors: " . count($errors) . " (out of " . count($image_urls) . " total images, $external_count external)");
 
+        // Prepare post information for admin display
+        $post_info = null;
+        if (isset($total_replacements_made) && $total_replacements_made > 0) {
+            $post_info = array(
+                'id' => $post_id,
+                'title' => $post->post_title,
+                'replacements_made' => $total_replacements_made,
+                'imported_count' => $imported,
+                'edit_link' => get_edit_post_link($post_id)
+            );
+        }
+
         return array(
             'imported' => $imported,
-            'errors' => $errors
+            'errors' => $errors,
+            'post_info' => $post_info
         );
     }
 

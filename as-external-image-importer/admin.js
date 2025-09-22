@@ -3,6 +3,7 @@ jQuery(document).ready(function($) {
     let totalProcessed = 0;
     let totalImported = 0;
     let allErrors = [];
+    let allPostsWithReplacements = []; // Track posts with URL replacements
     let totalPosts = 0; // Store total posts count
 
     $('#eii-start-import').on('click', function() {
@@ -23,6 +24,7 @@ jQuery(document).ready(function($) {
         totalProcessed = 0;
         totalImported = 0;
         allErrors = [];
+        allPostsWithReplacements = []; // Reset posts with replacements
         totalPosts = 0; // Reset total posts
 
         $('#eii-start-import').hide();
@@ -85,6 +87,12 @@ jQuery(document).ready(function($) {
                     if (data.errors && data.errors.length > 0) {
                         allErrors = allErrors.concat(data.errors);
                         console.log('Errors found:', data.errors);
+                    }
+
+                    // Collect posts with URL replacements
+                    if (data.posts_with_replacements && data.posts_with_replacements.length > 0) {
+                        allPostsWithReplacements = allPostsWithReplacements.concat(data.posts_with_replacements);
+                        console.log('Posts with replacements found:', data.posts_with_replacements);
                     }
 
                     // Store total posts from first response
@@ -178,13 +186,45 @@ jQuery(document).ready(function($) {
         $('#eii-processed').text(totalProcessed);
         $('#eii-imported').text(totalImported);
 
+        // Update posts with replacements
+        if (allPostsWithReplacements.length > 0) {
+            let replacementHtml = '';
+            allPostsWithReplacements.forEach(function(postInfo) {
+                replacementHtml += '<div class="eii-post-replacement">';
+                replacementHtml += '<div class="eii-post-title">' + escapeHtml(postInfo.title) + '</div>';
+                replacementHtml += '<div class="eii-replacement-count">';
+                replacementHtml += postInfo.replacements_made + ' URL replacement' + (postInfo.replacements_made !== 1 ? 's' : '');
+                if (postInfo.imported_count > 0) {
+                    replacementHtml += ', ' + postInfo.imported_count + ' image' + (postInfo.imported_count !== 1 ? 's' : '') + ' imported';
+                }
+                if (postInfo.edit_link) {
+                    replacementHtml += ' - <a href="' + postInfo.edit_link + '" target="_blank">Edit Post</a>';
+                }
+                replacementHtml += '</div>';
+                replacementHtml += '</div>';
+            });
+            $('#eii-replacement-list').html(replacementHtml);
+        } else {
+            $('#eii-replacement-list').html('<p><em>No replacements yet...</em></p>');
+        }
+
         if (allErrors.length > 0) {
             let errorHtml = '<h4>Errors:</h4>';
             allErrors.forEach(function(error) {
-                errorHtml += '<div class="eii-error">' + error + '</div>';
+                errorHtml += '<div class="eii-error">' + escapeHtml(error) + '</div>';
             });
             $('#eii-errors').html(errorHtml);
         }
+    }
+
+    // Helper function to escape HTML
+    function escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
     function updateStatus(message) {
