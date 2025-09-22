@@ -4,7 +4,7 @@ Plugin Name: External Image Importer
 Plugin URI: https://www.alexseifert.com
 Description: Imports external images from posts into the WordPress media library
 Author: Alex Seifert
-Version: 1.0.7
+Version: 1.0.8
 Author URI: https://www.alexseifert.com
 */
 
@@ -370,6 +370,31 @@ class ExternalImageImporter {
             }
         }
 
+        // Also find linked images (a tags with href pointing to images)
+        // Pattern 1: Links with obvious image extensions
+        $link_pattern = '/<a[^>]+href\s*=\s*["\']([^"\']+\.(jpg|jpeg|png|gif|webp|bmp|svg))["\'][^>]*>/i';
+        preg_match_all($link_pattern, $content, $link_matches, PREG_SET_ORDER);
+        if (!empty($link_matches)) {
+            foreach ($link_matches as $match) {
+                $image_urls[] = $match[1];
+                error_log("EII Debug: Found linked image URL (by extension): " . $match[1]);
+            }
+        }
+
+        // Pattern 2: Links wrapping img tags - extract href URLs that might be images
+        $wrapped_img_pattern = '/<a[^>]+href\s*=\s*["\']([^"\']+)["\'][^>]*>.*?<img[^>]*>.*?<\/a>/is';
+        preg_match_all($wrapped_img_pattern, $content, $wrapped_matches, PREG_SET_ORDER);
+        if (!empty($wrapped_matches)) {
+            foreach ($wrapped_matches as $match) {
+                // Only add if the href URL looks like it could be an image (external URL)
+                $href_url = $match[1];
+                if ($this->could_be_image_url($href_url)) {
+                    $image_urls[] = $href_url;
+                    error_log("EII Debug: Found linked image URL (wrapping img): " . $href_url);
+                }
+            }
+        }
+
         // Process featured image
         $featured_image_url = $this->get_featured_image_url($post_id);
         if ($featured_image_url) {
@@ -382,12 +407,17 @@ class ExternalImageImporter {
         error_log("EII Debug: Found " . count($image_urls) . " total image URLs in post $post_id: " . implode(', ', array_slice($image_urls, 0, 5)) . (count($image_urls) > 5 ? '...' : ''));
 
         $external_count = 0;
+        $linked_count = 0;
         foreach ($image_urls as $url) {
             if ($this->is_external_url($url)) {
                 $external_count++;
+                // Check if this URL was likely found in a link (rough heuristic)
+                if (strpos($content, 'href="' . $url . '"') !== false || strpos($content, "href='" . $url . "'") !== false) {
+                    $linked_count++;
+                }
             }
         }
-        error_log("EII Debug: Found $external_count external images in post $post_id");
+        error_log("EII Debug: Found $external_count external images in post $post_id ($linked_count appear to be linked images)");
 
         if (!empty($image_urls)) {
             $processed_images = 0;
@@ -437,7 +467,15 @@ class ExternalImageImporter {
                         }, $content, -1, $count);
                         $replacements_made += $count;
 
-                        // 5. Fallback: simple string replacement for any remaining cases
+                        // 5. Replace linked images (when images are linked to themselves)
+                        // Handle both double and single quotes with flexible spacing
+                        $content = preg_replace('/(<a[^>]+href\s*=\s*["\'])' . preg_quote($image_url, '/') . '(["\'][^>]*>)/i', '${1}' . $new_url . '${2}', $content, -1, $count);
+                        $replacements_made += $count;
+                        if ($count > 0) {
+                            error_log("EII Debug: Replaced $count linked image URLs (href): $image_url -> $new_url");
+                        }
+
+                        // 6. Fallback: simple string replacement for any remaining cases
                         if ($replacements_made === 0) {
                             $content = str_replace($image_url, $new_url, $content, $count);
                             $replacements_made += $count;
@@ -564,6 +602,39 @@ class ExternalImageImporter {
         }
 
         return $url;
+    }
+
+    /**
+     * Check if a URL could potentially be an image, even without obvious extension
+     */
+    private function could_be_image_url($url) {
+        if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        // Check if it has an obvious image extension
+        if (preg_match('/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|#|$)/i', $url)) {
+            return true;
+        }
+
+        // Check if it's an external URL (could be a dynamic image)
+        if ($this->is_external_url($url)) {
+            // Check for common image-related patterns in URL
+            if (preg_match('/(image|img|photo|picture|thumbnail|thumb|avatar|gallery)/i', $url)) {
+                return true;
+            }
+
+            // Check for common image hosting domains/patterns
+            $image_domains = ['imgur.com', 'photobucket.com', 'flickr.com', 'googleusercontent.com', 'cloudfront.net'];
+            $host = parse_url($url, PHP_URL_HOST);
+            foreach ($image_domains as $domain) {
+                if (strpos($host, $domain) !== false) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private function get_featured_image_url($post_id) {
