@@ -314,28 +314,30 @@ class ExternalImageImporter {
 
         error_log("EII Debug: Processing post $post_id ('{$post->post_title}'), content length: " . strlen($content));
 
-        // Find all img tags with various src attributes
+        // Find all img tags with various src attributes - improved pattern matching
         $patterns = array(
             // Standard src attribute
-            '/<img[^>]+src=["\']([^"\']+)["\'][^>]*>/i',
+            '/<img[^>]+src\s*=\s*["\']([^"\']+)["\'][^>]*>/i',
             // data-src for lazy loading
-            '/<img[^>]+data-src=["\']([^"\']+)["\'][^>]*>/i',
+            '/<img[^>]+data-src\s*=\s*["\']([^"\']+)["\'][^>]*>/i',
             // data-lazy-src for lazy loading
-            '/<img[^>]+data-lazy-src=["\']([^"\']+)["\'][^>]*>/i',
+            '/<img[^>]+data-lazy-src\s*=\s*["\']([^"\']+)["\'][^>]*>/i',
             // Extract URLs from srcset attributes
-            '/<img[^>]+srcset=["\']([^"\']+)["\'][^>]*>/i'
+            '/<img[^>]+srcset\s*=\s*["\']([^"\']+)["\'][^>]*>/i'
         );
 
         foreach ($patterns as $pattern) {
-            preg_match_all($pattern, $content, $matches);
-            if (!empty($matches[1])) {
-                foreach ($matches[1] as $match) {
+            preg_match_all($pattern, $content, $matches, PREG_SET_ORDER);
+            if (!empty($matches)) {
+                foreach ($matches as $match) {
                     if (strpos($pattern, 'srcset') !== false) {
                         // Handle srcset - extract individual URLs
-                        $srcset_urls = $this->extract_srcset_urls($match);
+                        $srcset_urls = $this->extract_srcset_urls($match[1]);
                         $image_urls = array_merge($image_urls, $srcset_urls);
+                        error_log("EII Debug: Found srcset with " . count($srcset_urls) . " URLs: " . $match[1]);
                     } else {
-                        $image_urls[] = $match;
+                        $image_urls[] = $match[1];
+                        error_log("EII Debug: Found image URL in " . (strpos($pattern, 'data-src') ? 'data-src' : (strpos($pattern, 'data-lazy-src') ? 'data-lazy-src' : 'src')) . ": " . $match[1]);
                     }
                 }
             }
@@ -347,8 +349,8 @@ class ExternalImageImporter {
             $image_urls[] = $featured_image_url;
         }
 
-        // Remove duplicates
-        $image_urls = array_unique($image_urls);
+        // Remove duplicates and normalize URLs
+        $image_urls = array_unique(array_map(array($this, 'prepare_url_for_matching'), $image_urls));
 
         error_log("EII Debug: Found " . count($image_urls) . " total image URLs in post $post_id: " . implode(', ', array_slice($image_urls, 0, 5)) . (count($image_urls) > 5 ? '...' : ''));
 
@@ -384,27 +386,62 @@ class ExternalImageImporter {
                         $new_url = wp_get_attachment_url($result['attachment_id']);
                         $old_content = $content;
 
-                        // Try multiple replacement strategies for better matching
-                        $content = str_replace($image_url, $new_url, $content);
+                        // Replace URL in different HTML attribute contexts
+                        $replacements_made = 0;
 
-                        // If that didn't work, try with URL encoding/decoding variations
-                        if ($old_content === $content) {
-                            $content = str_replace(urlencode($image_url), $new_url, $content);
-                        }
-                        if ($old_content === $content) {
-                            $content = str_replace(urldecode($image_url), $new_url, $content);
-                        }
-                        // Try with HTML entity encoding
-                        if ($old_content === $content) {
-                            $content = str_replace(htmlspecialchars($image_url), $new_url, $content);
+                        // 1. Standard src attribute
+                        $content = preg_replace('/(<img[^>]+src=["\'])' . preg_quote($image_url, '/') . '(["\'][^>]*>)/i', '${1}' . $new_url . '${2}', $content, -1, $count);
+                        $replacements_made += $count;
+
+                        // 2. data-src attribute
+                        $content = preg_replace('/(<img[^>]+data-src=["\'])' . preg_quote($image_url, '/') . '(["\'][^>]*>)/i', '${1}' . $new_url . '${2}', $content, -1, $count);
+                        $replacements_made += $count;
+
+                        // 3. data-lazy-src attribute
+                        $content = preg_replace('/(<img[^>]+data-lazy-src=["\'])' . preg_quote($image_url, '/') . '(["\'][^>]*>)/i', '${1}' . $new_url . '${2}', $content, -1, $count);
+                        $replacements_made += $count;
+
+                        // 4. Handle srcset attributes - replace individual URLs within srcset
+                        $content = preg_replace_callback('/(<img[^>]+srcset=["\'])([^"\']+)(["\'][^>]*>)/i', function($matches) use ($image_url, $new_url) {
+                            $srcset = $matches[2];
+                            $updated_srcset = str_replace($image_url, $new_url, $srcset);
+                            return $matches[1] . $updated_srcset . $matches[3];
+                        }, $content, -1, $count);
+                        $replacements_made += $count;
+
+                        // 5. Fallback: simple string replacement for any remaining cases
+                        if ($replacements_made === 0) {
+                            $content = str_replace($image_url, $new_url, $content, $count);
+                            $replacements_made += $count;
+
+                            // Try URL encoding/decoding variations if still no replacement
+                            if ($count === 0) {
+                                $content = str_replace(urlencode($image_url), $new_url, $content, $count);
+                                $replacements_made += $count;
+                            }
+                            if ($count === 0) {
+                                $content = str_replace(urldecode($image_url), $new_url, $content, $count);
+                                $replacements_made += $count;
+                            }
+                            if ($count === 0) {
+                                $content = str_replace(htmlspecialchars($image_url), $new_url, $content, $count);
+                                $replacements_made += $count;
+                            }
                         }
 
-                        error_log("EII Debug: URL replacement - Old: $image_url -> New: $new_url");
-                        if ($old_content === $content) {
+                        error_log("EII Debug: URL replacement - Old: $image_url -> New: $new_url, Replacements made: $replacements_made");
+
+                        if ($replacements_made === 0) {
                             error_log("EII Debug: WARNING - URL replacement had no effect for $image_url in post $post_id");
                             // Let's see what the content actually contains around this URL
                             if (strpos($content, $image_url) !== false) {
                                 error_log("EII Debug: URL found in content but replacement failed");
+                                // Log a snippet of content around the URL for debugging
+                                $url_pos = strpos($content, $image_url);
+                                $snippet_start = max(0, $url_pos - 100);
+                                $snippet_length = min(200, strlen($content) - $snippet_start);
+                                $snippet = substr($content, $snippet_start, $snippet_length);
+                                error_log("EII Debug: Content snippet around URL: " . $snippet);
                             } else {
                                 error_log("EII Debug: URL not found in content - may be in different format");
                             }
@@ -458,12 +495,31 @@ class ExternalImageImporter {
         $sources = explode(',', $srcset);
         foreach ($sources as $source) {
             $source = trim($source);
-            // Extract URL (everything before the first space)
-            if (preg_match('/^([^\s]+)/', $source, $matches)) {
-                $urls[] = $matches[1];
+            // Extract URL (everything before the first space or width/height descriptor)
+            if (preg_match('/^\s*([^\s]+)(?:\s+[0-9]+[wx]?)?\s*$/', $source, $matches)) {
+                $url = trim($matches[1]);
+                if (!empty($url)) {
+                    $urls[] = $url;
+                    error_log("EII Debug: Extracted URL from srcset: " . $url);
+                }
             }
         }
-        return $urls;
+        return array_unique($urls); // Remove duplicates
+    }
+
+    /**
+     * More robust URL matching for replacement - handles URL variations
+     */
+    private function prepare_url_for_matching($url) {
+        // Remove common URL variations that might cause matching issues
+        $url = trim($url);
+
+        // Handle protocol-relative URLs
+        if (strpos($url, '//') === 0) {
+            $url = 'https:' . $url;
+        }
+
+        return $url;
     }
 
     private function get_featured_image_url($post_id) {
