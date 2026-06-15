@@ -1,14 +1,14 @@
 <?php
 /**
  * @package Post Planner
- * @version 1.0.0
+ * @version 1.1.0
  */
 /*
 Plugin Name: Post Planner
 Plugin URI: https://www.alexseifert.com
 Description: The plugin for planning posts
 Author: Alex Seifert
-Version: 1.0.0
+Version: 1.1.0
 Author URI: https://www.alexseifert.com
 */
 
@@ -67,20 +67,20 @@ function aspp_save_post_meta($post_id) {
          wp_verify_nonce( $_POST['aspp_change_post_type_nonce_field'], 'aspp_change_post_type_nonce' ) &&
          array_key_exists( 'aspp_new_post_type', $_POST ) &&
          !empty( $_POST['aspp_new_post_type'] ) ) {
-        
+
         $new_post_type = sanitize_text_field( $_POST['aspp_new_post_type'] );
         $valid_post_types = get_post_types();
-        
+
         if ( in_array( $new_post_type, $valid_post_types ) ) {
             // Remove the save_post hook temporarily to prevent infinite loop
             remove_action( 'save_post', 'aspp_save_post_meta' );
-            
+
             // Update the post type
             wp_update_post( array(
                 'ID' => $post_id,
                 'post_type' => $new_post_type
             ) );
-            
+
             // Re-add the save_post hook
             add_action( 'save_post', 'aspp_save_post_meta' );
         }
@@ -106,7 +106,7 @@ function aspp_enqueue_admin_scripts($hook) {
                 '1.0.0',
                 true
             );
-            
+
             // Pass nonce to JavaScript
             wp_localize_script(
                 'aspp-admin-posts',
@@ -178,31 +178,88 @@ function aspp_convert_post_type_ajax() {
     if (!wp_verify_nonce($_POST['nonce'], 'aspp_convert_post_type')) {
         wp_die(json_encode(['success' => false, 'data' => 'Invalid nonce']));
     }
-    
+
     $post_id = intval($_POST['post_id']);
     $new_post_type = sanitize_text_field($_POST['new_post_type']);
-    
+
     // Verify the post exists and user can edit it
     if (!current_user_can('edit_post', $post_id)) {
         wp_die(json_encode(['success' => false, 'data' => 'Insufficient permissions']));
     }
-    
+
     // Validate post type
     $valid_post_types = get_post_types();
     if (!in_array($new_post_type, $valid_post_types)) {
         wp_die(json_encode(['success' => false, 'data' => 'Invalid post type']));
     }
-    
+
     // Update the post type
     $result = wp_update_post(array(
         'ID' => $post_id,
         'post_type' => $new_post_type
     ));
-    
+
     if (is_wp_error($result)) {
         wp_die(json_encode(['success' => false, 'data' => $result->get_error_message()]));
     }
-    
+
     wp_die(json_encode(['success' => true, 'data' => 'Post type converted successfully']));
 }
 add_action('wp_ajax_aspp_convert_post_type', 'aspp_convert_post_type_ajax');
+
+// Add "Convert to Draft Post" to Bulk Actions dropdown
+function aspp_add_bulk_action($bulk_actions) {
+    $bulk_actions['aspp_convert_to_draft'] = __('Convert to Draft Post', 'textdomain');
+    return $bulk_actions;
+}
+add_filter('bulk_actions-edit-planned_post', 'aspp_add_bulk_action');
+
+// Handle the bulk action
+function aspp_handle_bulk_action($redirect_url, $action, $post_ids) {
+    if ($action !== 'aspp_convert_to_draft') {
+        return $redirect_url;
+    }
+
+    $converted = 0;
+
+    foreach ($post_ids as $post_id) {
+        if (!current_user_can('edit_post', $post_id)) {
+            continue;
+        }
+
+        $result = wp_update_post(array(
+            'ID'          => $post_id,
+            'post_type'   => 'post',
+            'post_status' => 'draft',
+        ));
+
+        if (!is_wp_error($result)) {
+            $converted++;
+        }
+    }
+
+    $redirect_url = add_query_arg('aspp_converted', $converted, $redirect_url);
+
+    return $redirect_url;
+}
+add_filter('handle_bulk_actions-edit-planned_post', 'aspp_handle_bulk_action', 10, 3);
+
+// Show admin notice after bulk conversion
+function aspp_bulk_action_notice() {
+    if (isset($_GET['aspp_converted']) && $_GET['aspp_converted'] > 0) {
+        $count = intval($_GET['aspp_converted']);
+        printf(
+            '<div class="notice notice-success is-dismissible"><p>%s</p></div>',
+            sprintf(
+                _n(
+                    '%d planned post converted to a draft post.',
+                    '%d planned posts converted to draft posts.',
+                    $count,
+                    'textdomain'
+                ),
+                $count
+            )
+        );
+    }
+}
+add_action('admin_notices', 'aspp_bulk_action_notice');
