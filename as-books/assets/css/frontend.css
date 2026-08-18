@@ -1,0 +1,16 @@
+.asbk-book-meta {
+	margin-bottom: 1.5em;
+}
+
+.asbk-book-meta__row {
+	margin: 0 0 0.5em;
+}
+
+.asbk-book-meta__rating {
+	letter-spacing: 0.1em;
+}
+
+.asbk-book-meta__description {
+	margin-top: 1em;
+	font-style: italic;
+}
