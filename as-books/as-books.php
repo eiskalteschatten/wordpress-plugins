@@ -94,6 +94,15 @@ function asbk_deactivate() {
 }
 register_deactivation_hook( __FILE__, 'asbk_deactivate' );
 
+function asbk_enqueue_admin_list_styles( $hook ) {
+    global $typenow;
+
+    if ( 'edit.php' === $hook && 'book' === $typenow ) {
+        wp_enqueue_style( 'asbk-frontend', plugin_dir_url( __FILE__ ) . 'assets/css/frontend.css', array(), '1.0.0' );
+    }
+}
+add_action( 'admin_enqueue_scripts', 'asbk_enqueue_admin_list_styles' );
+
 // Admin list table columns
 function asbk_book_columns( $columns ) {
     $new_columns = array();
@@ -136,7 +145,7 @@ function asbk_book_column_content( $column, $post_id ) {
             echo esc_html( get_post_meta( $post_id, 'asbk_authors', true ) );
             break;
         case 'asbk_rating':
-            echo esc_html( asbk_format_rating_stars( get_post_meta( $post_id, 'asbk_rating', true ) ) );
+            echo wp_kses_post( asbk_format_rating_stars( get_post_meta( $post_id, 'asbk_rating', true ) ) );
             break;
         case 'asbk_status':
             $statuses = asbk_get_statuses();
@@ -148,12 +157,13 @@ function asbk_book_column_content( $column, $post_id ) {
 add_action( 'manage_book_posts_custom_column', 'asbk_book_column_content', 10, 2 );
 
 function asbk_format_rating_stars( $rating ) {
-    $rating = (float) $rating;
-    $full_stars = (int) floor( $rating );
-    $half_star = ( $rating - $full_stars ) >= 0.5;
-    $empty_stars = 5 - $full_stars - ( $half_star ? 1 : 0 );
+    $full_stars = (int) min( 5, max( 0, (int) $rating ) );
+    $empty_stars = 5 - $full_stars;
 
-    return str_repeat( '★', $full_stars ) . ( $half_star ? '⯪' : '' ) . str_repeat( '☆', max( 0, $empty_stars ) );
+    $stars = str_repeat( '<span class="asbk-star asbk-star--full">&#9733;</span>', $full_stars );
+    $stars .= str_repeat( '<span class="asbk-star asbk-star--empty">&#9734;</span>', $empty_stars );
+
+    return '<span class="asbk-stars">' . $stars . '</span>';
 }
 
 // Status filter dropdown on the book admin list
@@ -208,7 +218,7 @@ function asbk_render_book_meta( $post_id ) {
             <p class="asbk-book-meta__row"><strong><?php esc_html_e( 'Author(s):', 'as-books' ); ?></strong> <?php echo esc_html( $authors ); ?></p>
         <?php endif; ?>
         <?php if ( '' !== $rating ) : ?>
-            <p class="asbk-book-meta__row asbk-book-meta__rating"><strong><?php esc_html_e( 'Rating:', 'as-books' ); ?></strong> <?php echo esc_html( asbk_format_rating_stars( $rating ) ); ?></p>
+            <p class="asbk-book-meta__row asbk-book-meta__rating"><strong><?php esc_html_e( 'Rating:', 'as-books' ); ?></strong> <?php echo wp_kses_post( asbk_format_rating_stars( $rating ) ); ?></p>
         <?php endif; ?>
         <?php if ( $status && isset( $statuses[ $status ] ) ) : ?>
             <p class="asbk-book-meta__row"><strong><?php esc_html_e( 'Status:', 'as-books' ); ?></strong> <?php echo esc_html( $statuses[ $status ] ); ?></p>

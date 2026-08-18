@@ -36,8 +36,8 @@ function asbk_book_details_callback( $post ) {
     <p>
         <label for="asbk_rating"><strong><?php esc_html_e( 'Rating', 'as-books' ); ?></strong></label><br>
         <select id="asbk_rating" name="asbk_rating">
-            <?php for ( $value = 0; $value <= 5; $value += 0.5 ) : ?>
-                <option value="<?php echo esc_attr( $value ); ?>" <?php selected( (float) $rating, $value ); ?>><?php echo esc_html( $value ); ?></option>
+            <?php for ( $value = 0; $value <= 5; $value++ ) : ?>
+                <option value="<?php echo esc_attr( $value ); ?>" <?php selected( (int) $rating, $value ); ?>><?php echo esc_html( $value ); ?></option>
             <?php endfor; ?>
         </select>
     </p>
@@ -95,7 +95,7 @@ function asbk_save_book_meta( $post_id ) {
     }
 
     if ( isset( $_POST['asbk_rating'] ) ) {
-        $rating = round( min( 5, max( 0, (float) $_POST['asbk_rating'] ) ) * 2 ) / 2;
+        $rating = min( 5, max( 0, (int) $_POST['asbk_rating'] ) );
         update_post_meta( $post_id, 'asbk_rating', $rating );
     }
 
