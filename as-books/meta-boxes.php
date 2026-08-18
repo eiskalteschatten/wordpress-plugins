@@ -23,6 +23,7 @@ function asbk_book_details_callback( $post ) {
     $original_language = get_post_meta( $post->ID, 'asbk_original_language', true );
     $language_read_in = get_post_meta( $post->ID, 'asbk_language_read_in', true );
     $publisher = get_post_meta( $post->ID, 'asbk_publisher', true );
+    $isbn = get_post_meta( $post->ID, 'asbk_isbn', true );
     $statuses = asbk_get_statuses();
     ?>
     <p>
@@ -68,6 +69,10 @@ function asbk_book_details_callback( $post ) {
     <p>
         <label for="asbk_publisher"><strong><?php esc_html_e( 'Publisher', 'as-books' ); ?></strong></label><br>
         <input type="text" id="asbk_publisher" name="asbk_publisher" class="widefat" value="<?php echo esc_attr( $publisher ); ?>">
+    </p>
+    <p>
+        <label for="asbk_isbn"><strong><?php esc_html_e( 'ISBN', 'as-books' ); ?></strong></label><br>
+        <input type="text" id="asbk_isbn" name="asbk_isbn" class="widefat" value="<?php echo esc_attr( $isbn ); ?>">
     </p>
     <?php
 }
@@ -129,6 +134,12 @@ function asbk_save_book_meta( $post_id ) {
 
     if ( isset( $_POST['asbk_publisher'] ) ) {
         update_post_meta( $post_id, 'asbk_publisher', sanitize_text_field( wp_unslash( $_POST['asbk_publisher'] ) ) );
+    }
+
+    if ( isset( $_POST['asbk_isbn'] ) ) {
+        $isbn = sanitize_text_field( wp_unslash( $_POST['asbk_isbn'] ) );
+        $isbn = preg_replace( '/[^0-9Xx-]/', '', $isbn );
+        update_post_meta( $post_id, 'asbk_isbn', $isbn );
     }
 }
 add_action( 'save_post_book', 'asbk_save_book_meta' );

@@ -210,6 +210,7 @@ function asbk_render_book_meta( $post_id ) {
     $original_language = get_post_meta( $post_id, 'asbk_original_language', true );
     $language_read_in = get_post_meta( $post_id, 'asbk_language_read_in', true );
     $publisher = get_post_meta( $post_id, 'asbk_publisher', true );
+    $isbn = get_post_meta( $post_id, 'asbk_isbn', true );
 
     ob_start();
     ?>
@@ -228,6 +229,9 @@ function asbk_render_book_meta( $post_id ) {
         <?php endif; ?>
         <?php if ( $publisher ) : ?>
             <p class="asbk-book-meta__row"><strong><?php esc_html_e( 'Publisher:', 'as-books' ); ?></strong> <?php echo esc_html( $publisher ); ?></p>
+        <?php endif; ?>
+        <?php if ( $isbn ) : ?>
+            <p class="asbk-book-meta__row"><strong><?php esc_html_e( 'ISBN:', 'as-books' ); ?></strong> <?php echo esc_html( $isbn ); ?></p>
         <?php endif; ?>
         <?php if ( $original_language ) : ?>
             <p class="asbk-book-meta__row"><strong><?php esc_html_e( 'Original Language:', 'as-books' ); ?></strong> <?php echo esc_html( $original_language ); ?></p>
