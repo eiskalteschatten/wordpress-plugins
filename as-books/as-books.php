@@ -13,6 +13,7 @@ Author URI: https://www.alexseifert.com
 */
 
 include_once 'meta-boxes.php';
+include_once 'book-data-fetcher.php';
 
 // Status slugs shared by the meta box UI, save logic and frontend/admin rendering.
 function asbk_get_statuses() {

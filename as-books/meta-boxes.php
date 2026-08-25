@@ -74,6 +74,10 @@ function asbk_book_details_callback( $post ) {
         <label for="asbk_isbn"><strong><?php esc_html_e( 'ISBN', 'as-books' ); ?></strong></label><br>
         <input type="text" id="asbk_isbn" name="asbk_isbn" class="widefat" value="<?php echo esc_attr( $isbn ); ?>">
     </p>
+    <p>
+        <button type="button" id="asbk_fetch_book_data" class="button" data-post-id="<?php echo esc_attr( $post->ID ); ?>"><?php esc_html_e( 'Fetch Data', 'as-books' ); ?></button>
+        <span id="asbk_fetch_status" class="asbk-fetch-status" aria-live="polite"></span>
+    </p>
     <?php
 }
 
