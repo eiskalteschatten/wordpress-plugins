@@ -83,6 +83,25 @@ function asbk_plugin_init() {
 }
 add_action( 'init', 'asbk_plugin_init' );
 
+// Add books to the main site feed without displacing whatever post types are already queried there.
+function asbk_add_to_main_feed( $query ) {
+    if ( $query->is_feed() && $query->is_main_query() ) {
+        $post_types = $query->get( 'post_type' );
+        if ( empty( $post_types ) ) {
+            $post_types = array( 'post' );
+        } elseif ( ! is_array( $post_types ) ) {
+            $post_types = array( $post_types );
+        }
+
+        if ( ! in_array( 'book', $post_types, true ) ) {
+            $post_types[] = 'book';
+            $query->set( 'post_type', $post_types );
+        }
+    }
+    return $query;
+}
+add_action( 'pre_get_posts', 'asbk_add_to_main_feed' );
+
 function asbk_flush_rewrite_rules() {
     asbk_plugin_init();
     flush_rewrite_rules();
