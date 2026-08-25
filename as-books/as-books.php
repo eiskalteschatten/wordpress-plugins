@@ -77,7 +77,7 @@ function asbk_plugin_init() {
             'taxonomies' => array( 'book_genre', 'book_tag', 'book_category' ),
             'menu_icon' => 'dashicons-book-alt',
             'register_meta_box_cb' => 'asbk_add_book_meta_boxes',
-            'supports' => array( 'title', 'editor', 'thumbnail' ),
+            'supports' => array( 'title', 'editor', 'thumbnail', 'comments' ),
         )
     );
 }
