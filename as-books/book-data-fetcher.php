@@ -13,18 +13,35 @@ function asbk_empty_book_data() {
     );
 }
 
-function asbk_extract_openlibrary_description( $data ) {
-    foreach ( array( 'description', 'notes' ) as $key ) {
-        if ( ! empty( $data[ $key ] ) ) {
-            return is_array( $data[ $key ] ) ? ( $data[ $key ]['value'] ?? null ) : $data[ $key ];
-        }
+function asbk_fetch_openlibrary_record_description( $record_key ) {
+    $response = wp_remote_get( 'https://openlibrary.org' . $record_key . '.json', array( 'timeout' => 10 ) );
+
+    if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+        return null;
     }
 
-    if ( ! empty( $data['excerpts'][0]['text'] ) ) {
-        return $data['excerpts'][0]['text'];
+    return json_decode( wp_remote_retrieve_body( $response ), true );
+}
+
+// jscmd=data never includes 'description'/'notes'; the real blurb lives on the edition (or its parent work) record.
+function asbk_fetch_openlibrary_edition_description( $edition_key ) {
+    $edition = asbk_fetch_openlibrary_record_description( $edition_key );
+
+    if ( ! empty( $edition['description'] ) ) {
+        return is_array( $edition['description'] ) ? ( $edition['description']['value'] ?? null ) : $edition['description'];
     }
 
-    return null;
+    if ( empty( $edition['works'][0]['key'] ) ) {
+        return null;
+    }
+
+    $work = asbk_fetch_openlibrary_record_description( $edition['works'][0]['key'] );
+
+    if ( empty( $work['description'] ) ) {
+        return null;
+    }
+
+    return is_array( $work['description'] ) ? ( $work['description']['value'] ?? null ) : $work['description'];
 }
 
 function asbk_fetch_openlibrary_data( $isbn ) {
@@ -50,7 +67,10 @@ function asbk_fetch_openlibrary_data( $isbn ) {
         $result['authors'] = implode( ', ', wp_list_pluck( $data['authors'], 'name' ) );
     }
 
-    $result['description'] = asbk_extract_openlibrary_description( $data );
+    if ( ! empty( $data['key'] ) ) {
+        $result['description'] = asbk_fetch_openlibrary_edition_description( $data['key'] );
+    }
+
     $result['page_count'] = $data['number_of_pages'] ?? null;
     $result['publisher'] = $data['publishers'][0]['name'] ?? null;
     $result['cover_url'] = $data['cover']['large'] ?? $data['cover']['medium'] ?? $data['cover']['small'] ?? null;
