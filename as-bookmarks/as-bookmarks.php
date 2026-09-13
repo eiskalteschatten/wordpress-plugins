@@ -45,14 +45,51 @@ function asbm_plugin_init() {
             'taxonomies' => array( 'bookmark_tag' ),
             'menu_icon' => 'dashicons-admin-links',
             'register_meta_box_cb' => 'asbm_add_bookmark_meta_boxes',
-            'supports' => array( 'title', 'editor' ),
+            'supports' => array( 'title', 'editor', 'comments' ),
         )
     );
 }
 add_action( 'init', 'asbm_plugin_init' );
 
+// A dedicated feed at /feed/bookmarks/ (or ?feed=bookmarks) containing only bookmarks.
+function asbm_register_bookmarks_feed() {
+    add_feed( 'bookmarks', 'asbm_render_bookmarks_feed' );
+}
+add_action( 'init', 'asbm_register_bookmarks_feed' );
+
+function asbm_render_bookmarks_feed() {
+    load_template( ABSPATH . WPINC . '/feed-rss2.php' );
+}
+
+function asbm_bookmarks_feed_query( $query ) {
+    if ( $query->is_feed( 'bookmarks' ) && $query->is_main_query() ) {
+        $query->set( 'post_type', 'bookmark' );
+    }
+}
+add_action( 'pre_get_posts', 'asbm_bookmarks_feed_query' );
+
+// Add bookmarks to the main site feed without displacing whatever post types are already queried there.
+function asbm_add_to_main_feed( $query ) {
+    if ( $query->is_feed() && ! $query->is_feed( 'bookmarks' ) && $query->is_main_query() ) {
+        $post_types = $query->get( 'post_type' );
+        if ( empty( $post_types ) ) {
+            $post_types = array( 'post' );
+        } elseif ( ! is_array( $post_types ) ) {
+            $post_types = array( $post_types );
+        }
+
+        if ( ! in_array( 'bookmark', $post_types, true ) ) {
+            $post_types[] = 'bookmark';
+            $query->set( 'post_type', $post_types );
+        }
+    }
+    return $query;
+}
+add_action( 'pre_get_posts', 'asbm_add_to_main_feed' );
+
 function asbm_flush_rewrite_rules() {
     asbm_plugin_init();
+    asbm_register_bookmarks_feed();
     flush_rewrite_rules();
 }
 register_activation_hook( __FILE__, 'asbm_flush_rewrite_rules' );
