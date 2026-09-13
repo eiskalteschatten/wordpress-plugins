@@ -1,0 +1,165 @@
+<?php
+/**
+ * @package Bookmarks
+ * @version 1.0.0
+ */
+/*
+Plugin Name: Bookmarks
+Plugin URI: https://www.alexseifert.com
+Description: The plugin for bookmarks and links
+Author: Alex Seifert
+Version: 1.0.0
+Author URI: https://www.alexseifert.com
+*/
+
+include_once 'meta-boxes.php';
+
+function asbm_plugin_init() {
+    register_taxonomy( 'bookmark_tag', 'bookmark', array(
+        'labels' => array(
+            'name' => __( 'Bookmark Tags', 'as-bookmarks' ),
+            'singular_name' => __( 'Bookmark Tag', 'as-bookmarks' ),
+        ),
+        'public' => true,
+        'show_ui' => true,
+        'show_admin_column' => true,
+        'hierarchical' => false,
+        'show_in_rest' => true,
+        'rewrite' => array( 'slug' => 'bookmark-tag' ),
+    ) );
+
+    register_post_type( 'bookmark',
+        array(
+            'labels' => array(
+                'name' => __( 'Bookmarks', 'as-bookmarks' ),
+                'singular_name' => __( 'Bookmark', 'as-bookmarks' ),
+                'add_new_item' => __( 'Add New Bookmark', 'as-bookmarks' ),
+                'edit_item' => __( 'Edit Bookmark', 'as-bookmarks' ),
+            ),
+            'public' => true,
+            'show_ui' => true,
+            'show_in_menu' => true,
+            'has_archive' => true,
+            'show_in_rest' => true,
+            'taxonomies' => array( 'bookmark_tag' ),
+            'menu_icon' => 'dashicons-admin-links',
+            'register_meta_box_cb' => 'asbm_add_bookmark_meta_boxes',
+            'supports' => array( 'title', 'editor' ),
+        )
+    );
+}
+add_action( 'init', 'asbm_plugin_init' );
+
+function asbm_flush_rewrite_rules() {
+    asbm_plugin_init();
+    flush_rewrite_rules();
+}
+register_activation_hook( __FILE__, 'asbm_flush_rewrite_rules' );
+
+function asbm_deactivate() {
+    flush_rewrite_rules();
+}
+register_deactivation_hook( __FILE__, 'asbm_deactivate' );
+
+// Admin list table columns
+function asbm_bookmark_columns( $columns ) {
+    $new_columns = array();
+    foreach ( $columns as $key => $label ) {
+        $new_columns[ $key ] = $label;
+        if ( 'title' === $key ) {
+            $new_columns['asbm_url'] = __( 'URL', 'as-bookmarks' );
+        }
+    }
+    return $new_columns;
+}
+add_filter( 'manage_bookmark_posts_columns', 'asbm_bookmark_columns' );
+
+function asbm_bookmark_column_content( $column, $post_id ) {
+    if ( 'asbm_url' === $column ) {
+        $url = get_post_meta( $post_id, 'asbm_url', true );
+        if ( $url ) {
+            echo '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $url ) . '</a>';
+        }
+    }
+}
+add_action( 'manage_bookmark_posts_custom_column', 'asbm_bookmark_column_content', 10, 2 );
+
+// Point the bookmark's permalink straight at its target URL wherever it's linked.
+function asbm_bookmark_permalink( $permalink, $post ) {
+    if ( 'bookmark' === $post->post_type ) {
+        $url = get_post_meta( $post->ID, 'asbm_url', true );
+        if ( $url ) {
+            return $url;
+        }
+    }
+    return $permalink;
+}
+add_filter( 'post_type_link', 'asbm_bookmark_permalink', 10, 2 );
+
+// Prepend the target URL to the commentary on the single bookmark view, since its permalink now points offsite.
+function asbm_bookmark_content( $content ) {
+    if ( is_singular( 'bookmark' ) && in_the_loop() && is_main_query() ) {
+        $url = get_post_meta( get_the_ID(), 'asbm_url', true );
+        if ( $url ) {
+            $link = '<p class="asbm-url"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $url ) . '</a></p>';
+            $content = $link . $content;
+        }
+    }
+    return $content;
+}
+add_filter( 'the_content', 'asbm_bookmark_content' );
+
+// [as_bookmarks] shortcode: list bookmarks, optionally filtered by tag.
+function asbm_bookmarks_shortcode( $atts ) {
+    $atts = shortcode_atts( array(
+        'tag' => '',
+        'count' => -1,
+        'orderby' => 'title',
+        'order' => 'ASC',
+    ), $atts, 'as_bookmarks' );
+
+    $args = array(
+        'post_type' => 'bookmark',
+        'posts_per_page' => (int) $atts['count'],
+        'orderby' => sanitize_key( $atts['orderby'] ),
+        'order' => 'DESC' === strtoupper( $atts['order'] ) ? 'DESC' : 'ASC',
+    );
+
+    if ( ! empty( $atts['tag'] ) ) {
+        $args['tax_query'] = array(
+            array(
+                'taxonomy' => 'bookmark_tag',
+                'field' => 'slug',
+                'terms' => array_map( 'sanitize_title', explode( ',', $atts['tag'] ) ),
+            ),
+        );
+    }
+
+    $bookmarks = get_posts( $args );
+
+    if ( empty( $bookmarks ) ) {
+        return '';
+    }
+
+    $output = '<ul class="asbm-bookmark-list">';
+    foreach ( $bookmarks as $bookmark ) {
+        $url = get_post_meta( $bookmark->ID, 'asbm_url', true );
+        $commentary = wp_strip_all_tags( $bookmark->post_content );
+        $tags = get_the_terms( $bookmark->ID, 'bookmark_tag' );
+
+        $output .= '<li class="asbm-bookmark">';
+        $output .= '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( get_the_title( $bookmark ) ) . '</a>';
+        if ( $commentary ) {
+            $output .= '<p class="asbm-bookmark-commentary">' . esc_html( $commentary ) . '</p>';
+        }
+        if ( $tags && ! is_wp_error( $tags ) ) {
+            $tag_names = wp_list_pluck( $tags, 'name' );
+            $output .= '<p class="asbm-bookmark-tags">' . esc_html( implode( ', ', $tag_names ) ) . '</p>';
+        }
+        $output .= '</li>';
+    }
+    $output .= '</ul>';
+
+    return $output;
+}
+add_shortcode( 'as_bookmarks', 'asbm_bookmarks_shortcode' );
