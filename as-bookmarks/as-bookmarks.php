@@ -13,6 +13,7 @@ Author URI: https://www.alexseifert.com
 */
 
 include_once 'meta-boxes.php';
+include_once 'title-fetcher.php';
 
 function asbm_plugin_init() {
     register_taxonomy( 'bookmark_tag', 'bookmark', array(

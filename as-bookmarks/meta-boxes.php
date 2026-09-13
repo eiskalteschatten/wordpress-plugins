@@ -20,6 +20,10 @@ function asbm_bookmark_details_callback( $post ) {
         <label for="asbm_url"><strong><?php esc_html_e( 'URL', 'as-bookmarks' ); ?></strong></label><br>
         <input type="url" id="asbm_url" name="asbm_url" class="widefat" placeholder="https://" value="<?php echo esc_attr( $url ); ?>">
     </p>
+    <p>
+        <button type="button" id="asbm_fetch_title" class="button" data-post-id="<?php echo esc_attr( $post->ID ); ?>"><?php esc_html_e( 'Fetch Title', 'as-bookmarks' ); ?></button>
+        <span id="asbm_fetch_status" class="asbm-fetch-status" aria-live="polite"></span>
+    </p>
     <?php
 }
 
