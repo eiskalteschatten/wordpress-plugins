@@ -133,19 +133,10 @@ function asbm_bookmark_content( $content ) {
     $output = '';
 
     if ( $url ) {
-        $output .= '<p class="asbm-bookmark-link"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $url ) . '</a></p>';
+        $output .= '<p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer" class="asbm-bookmark-link">' . __( 'Visit Link', 'as-bookmarks' ) . '&nbsp;&#x2192;</a></p>';
     }
 
     $output .= $content;
-
-    $tags = get_the_terms( $post_id, 'bookmark_tag' );
-    if ( $tags && ! is_wp_error( $tags ) ) {
-        $tag_links = array();
-        foreach ( $tags as $tag ) {
-            $tag_links[] = '<a href="' . esc_url( get_term_link( $tag ) ) . '">' . esc_html( $tag->name ) . '</a>';
-        }
-        $output .= '<p class="asbm-bookmark-tags">' . esc_html__( 'Tags:', 'as-bookmarks' ) . ' ' . implode( ', ', $tag_links ) . '</p>';
-    }
 
     return $output;
 }
