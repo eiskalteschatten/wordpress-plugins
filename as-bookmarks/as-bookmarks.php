@@ -85,28 +85,32 @@ function asbm_bookmark_column_content( $column, $post_id ) {
 }
 add_action( 'manage_bookmark_posts_custom_column', 'asbm_bookmark_column_content', 10, 2 );
 
-// Point the bookmark's permalink straight at its target URL wherever it's linked.
-function asbm_bookmark_permalink( $permalink, $post ) {
-    if ( 'bookmark' === $post->post_type ) {
-        $url = get_post_meta( $post->ID, 'asbm_url', true );
-        if ( $url ) {
-            return $url;
-        }
-    }
-    return $permalink;
-}
-add_filter( 'post_type_link', 'asbm_bookmark_permalink', 10, 2 );
-
-// Prepend the target URL to the commentary on the single bookmark view, since its permalink now points offsite.
+// Show the target URL and tags around the commentary on the single bookmark view, using the theme's normal single template.
 function asbm_bookmark_content( $content ) {
-    if ( is_singular( 'bookmark' ) && in_the_loop() && is_main_query() ) {
-        $url = get_post_meta( get_the_ID(), 'asbm_url', true );
-        if ( $url ) {
-            $link = '<p class="asbm-url"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $url ) . '</a></p>';
-            $content = $link . $content;
-        }
+    if ( ! is_singular( 'bookmark' ) || ! in_the_loop() || ! is_main_query() ) {
+        return $content;
     }
-    return $content;
+
+    $post_id = get_the_ID();
+    $url = get_post_meta( $post_id, 'asbm_url', true );
+    $output = '';
+
+    if ( $url ) {
+        $output .= '<p class="asbm-bookmark-link"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $url ) . '</a></p>';
+    }
+
+    $output .= $content;
+
+    $tags = get_the_terms( $post_id, 'bookmark_tag' );
+    if ( $tags && ! is_wp_error( $tags ) ) {
+        $tag_links = array();
+        foreach ( $tags as $tag ) {
+            $tag_links[] = '<a href="' . esc_url( get_term_link( $tag ) ) . '">' . esc_html( $tag->name ) . '</a>';
+        }
+        $output .= '<p class="asbm-bookmark-tags">' . esc_html__( 'Tags:', 'as-bookmarks' ) . ' ' . implode( ', ', $tag_links ) . '</p>';
+    }
+
+    return $output;
 }
 add_filter( 'the_content', 'asbm_bookmark_content' );
 
