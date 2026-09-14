@@ -130,13 +130,11 @@ function asbm_bookmark_content( $content ) {
 
     $post_id = get_the_ID();
     $url = get_post_meta( $post_id, 'asbm_url', true );
-    $output = '';
+    $output = $content;
 
     if ( $url ) {
-        $output .= '<p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer" class="asbm-bookmark-link">' . __( 'Visit Link', 'as-bookmarks' ) . '&nbsp;&#x2192;</a></p>';
+        $output .= '<p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer" class="asbm-bookmark-link button large black-or-white">' . __( 'Visit Link', 'as-bookmarks' ) . '&nbsp;&#x2192;</a></p>';
     }
-
-    $output .= $content;
 
     return $output;
 }
