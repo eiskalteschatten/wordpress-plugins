@@ -15,6 +15,11 @@ Author URI: https://www.alexseifert.com
 include_once 'meta-boxes.php';
 include_once 'title-fetcher.php';
 
+function asbm_load_textdomain() {
+    load_plugin_textdomain( 'as-bookmarks', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+}
+add_action( 'plugins_loaded', 'asbm_load_textdomain' );
+
 function asbm_plugin_init() {
     register_taxonomy( 'bookmark_tag', 'bookmark', array(
         'labels' => array(

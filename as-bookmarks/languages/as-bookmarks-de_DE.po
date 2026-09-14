@@ -1,0 +1,17 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Bookmarks 1.0.0\n"
+"Report-Msgid-Bugs-To: https://www.alexseifert.com\n"
+"Last-Translator: Alex Seifert <contact@alexseifert.com>\n"
+"Language-Team: German <de@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de_DE\n"
+"X-Domain: as-bookmarks\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: as-bookmarks.php:148
+#, php-format
+msgid "Read on %s"
+msgstr "Auf %s lesen"
