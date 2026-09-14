@@ -122,6 +122,11 @@ function asbm_bookmark_column_content( $column, $post_id ) {
 }
 add_action( 'manage_bookmark_posts_custom_column', 'asbm_bookmark_column_content', 10, 2 );
 
+function asbm_get_domain_name( $url ) {
+    $domain = wp_parse_url( $url, PHP_URL_HOST );
+    return preg_replace( '/^www\./i', '', (string) $domain );
+}
+
 // Show the target URL and tags around the commentary on the single bookmark view, using the theme's normal single template.
 function asbm_bookmark_content( $content ) {
     if ( ! is_singular( 'bookmark' ) || ! in_the_loop() || ! is_main_query() ) {
@@ -133,7 +138,9 @@ function asbm_bookmark_content( $content ) {
     $output = $content;
 
     if ( $url ) {
-        $output .= '<p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer" class="asbm-bookmark-link button large black-or-white">' . __( 'Visit Link', 'as-bookmarks' ) . '&nbsp;&#x2192;</a></p>';
+        $domain = asbm_get_domain_name( $url );
+        $label = sprintf( __( 'Read on %s', 'as-bookmarks' ), $domain );
+        $output .= '<p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer" class="asbm-bookmark-link button large black-or-white">' . esc_html( $label ) . '&nbsp;&#x2192;</a></p>';
     }
 
     return $output;
