@@ -45,7 +45,7 @@ function asbm_plugin_init() {
             'public' => true,
             'show_ui' => true,
             'show_in_menu' => true,
-            'has_archive' => true,
+            'has_archive' => 'bookmarks',
             'show_in_rest' => true,
             'taxonomies' => array( 'bookmark_tag' ),
             'menu_icon' => 'dashicons-admin-links',
@@ -56,9 +56,9 @@ function asbm_plugin_init() {
 }
 add_action( 'init', 'asbm_plugin_init' );
 
-// A dedicated feed at /feed/bookmarks/ (or ?feed=bookmarks) containing only bookmarks.
+// A dedicated feed at /feed/bookmark-feed/ (or ?feed=bookmark-feed) containing only bookmarks.
 function asbm_register_bookmarks_feed() {
-    add_feed( 'bookmarks', 'asbm_render_bookmarks_feed' );
+    add_feed( 'bookmark-feed', 'asbm_render_bookmarks_feed' );
 }
 add_action( 'init', 'asbm_register_bookmarks_feed' );
 
@@ -67,7 +67,7 @@ function asbm_render_bookmarks_feed() {
 }
 
 function asbm_bookmarks_feed_query( $query ) {
-    if ( $query->is_feed( 'bookmarks' ) && $query->is_main_query() ) {
+    if ( $query->is_feed( 'bookmark-feed' ) && $query->is_main_query() ) {
         $query->set( 'post_type', 'bookmark' );
     }
 }
@@ -75,7 +75,7 @@ add_action( 'pre_get_posts', 'asbm_bookmarks_feed_query' );
 
 // Add bookmarks to the main site feed without displacing whatever post types are already queried there.
 function asbm_add_to_main_feed( $query ) {
-    if ( $query->is_feed() && ! $query->is_feed( 'bookmarks' ) && $query->is_main_query() ) {
+    if ( $query->is_feed() && ! $query->is_feed( 'bookmark-feed' ) && $query->is_main_query() ) {
         $post_types = $query->get( 'post_type' );
         if ( empty( $post_types ) ) {
             $post_types = array( 'post' );
