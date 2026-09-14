@@ -11,6 +11,10 @@ msgstr ""
 "X-Domain: as-bookmarks\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: as-bookmarks.php
+msgid "Bookmarks"
+msgstr "Lesezeichen"
+
 #: as-bookmarks.php:148
 #, php-format
 msgid "Read on %s"

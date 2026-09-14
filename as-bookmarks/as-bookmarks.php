@@ -20,6 +20,15 @@ function asbm_load_textdomain() {
 }
 add_action( 'plugins_loaded', 'asbm_load_textdomain' );
 
+function asbm_bookmark_archive_title( $title_parts ) {
+    if ( is_post_type_archive( 'bookmark' ) ) {
+        $title_parts['title'] = __( 'Bookmarks', 'as-bookmarks' );
+    }
+
+    return $title_parts;
+}
+add_filter( 'document_title_parts', 'asbm_bookmark_archive_title' );
+
 function asbm_plugin_init() {
     register_taxonomy( 'bookmark_tag', 'bookmark', array(
         'labels' => array(
